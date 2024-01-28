@@ -1,0 +1,5 @@
+
+
+function onLoad(save_data)
+  log("El Grande loading")
+end
