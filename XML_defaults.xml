@@ -1,0 +1,42 @@
+<Defaults>
+  <Panel class="Draggable" allowDragging="true" returnToOriginalPositionWhenReleased="false" />
+  <Panel class="Viewport" image="Sprites/Layout/Viewport"/>
+  <Panel class="Base" image="Sprites/Layout/Base"/>
+  <Panel class="Title" image="Sprites/Layout/Title" />
+  <Panel class="Light" color="rgb(0.8,0.4,0)" />
+  <Panel class="Dark" color="#301616" />
+  <Panel class="Pink" color="Pink" />
+  <Panel class="Clear" color="rgba(0,0,0,0)" />
+
+  <TableLayout autoCalculateHeight="true" useGlobalCellPadding="false" />
+  <Row dontUseTableRowBackground="true" />
+  <Cell dontUseTableCellBackground="true" color="rgba(0,0,0,0)"/> <!-- dontUseTableCellBackground false to show lines -->
+
+  <Image preserveAspect="true" />
+
+  <Button hoverClass="hover" pressClass="press" selectClass="select" color="rgb(0.7,0.3,0)" image="Sprites/Layout/Button" />
+  <Button textColor="rgb(0.9,0.9,0)" fontSize="20" font="Arial Bold" textShadow="rgba(0,0,0,0.5)" />
+  <Button class="hover" color="rgb(1,0.4,0)" textColor="rgb(1,1,0)" textShadow="rgba(0,0,0,1)"/>
+  <Button class="press" color="rgb(0.4,0.1,0)" textColor="rgb(1,1,0)" />
+  <Button class="select" color="rgb(0.4,0.1,0)" textColor="rgb(1,1,0)" />
+  <Button class="Hidden" color="rgba(0,0,0,0)" />
+
+  <Text font="Arial" color="rgb(0.9,0.9,0.9)" shadow="rgba(0,0,0,1)" fontSize="16" />
+  <Text class="Title" fontSize="24" color="rgb(0.9,0.9,0)"  />
+  <Text class="Gray" color="Gray" />
+  <Text class="LGray" color="rgba(1,1,1,0.5)" />
+  <Text class="Yellow" color="rgb(0.9,0.9,0)" />
+  <Text class="White" color="white" />
+  <Text class="Cyan" color="Cyan" />
+  <Text class="B" fontStyle="Bold" />
+  <Text class="Tiny" fontSize="10" />
+  <Text class="VS" fontSize="12" />
+  <Text class="S" fontSize="14" />
+  <Text class="M" fontSize="16" />
+  <Text class="ML" fontSize="18" />
+  <Text class="L" fontSize="20" />
+  <Text class="XL" fontSize="22" />
+  <Text class="XXL" fontSize="24" />
+  <Text class="Right" alignment="MiddleRight" />
+  <Text class="Left" alignment="MiddleLeft" />
+</Defaults>

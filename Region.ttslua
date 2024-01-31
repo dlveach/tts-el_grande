@@ -1,0 +1,46 @@
+
+T = {}
+env = {}
+
+--[[ TTS Load function --]]
+function onLoad(saved_state)
+  Wait.frames(function()
+    local tmp = Global.getTable("env")
+    if tmp == nil then return end
+    env = simpleDeepCopy(tmp)
+    local info = simpleDeepCopy(Global.getTable("C").region_info[self.getGUID()])
+    T.name = info.name
+    T.scoring_order = info.scoring_order
+    T.scoring = info.scoring
+    env.loaded = true
+    if env.trace then log("Region "..T.name.." loaded") end
+  end, 1)
+end
+
+--[[ Global:tryCollision uses a lock to prevent multiple triggers with this or other regions.
+    On first collision passing the lock, call Global with info for appropriate object tag.
+--]]
+function onCollisionEnter(info)
+  local o = info.collision_object
+  o.setVelocity(Vector(0,0,0))
+  if Global.call("tryCollision",o.getGUID()) then
+    self.highlightOn(Color["Yellow"],1)
+    if o.hasTag("Caballero") then
+      local color = Split(o.getName()," ")[1]
+      Global.call("addCaballero",{region_guid=self.getGUID(),color=color,caballero_guid=o.getGUID(),})
+    elseif o.hasTag("Grande") then
+      local color = Split(o.getName()," ")[1]
+      Global.call("setGrande",{region_guid=self.getGUID(),color=color,})
+    elseif o.hasTag("King") then
+      Global.call("setKing", self.getGUID())
+    elseif o.hasTag("ScoreBoard") then
+      log("TODO: handle mobile scoreboard")
+    else
+      if env.debug then log("Region"..T.name.." ignoring collision by "..o.getName()..":"..o.getGUID()) end
+    end
+  else
+    -- if env.debug then log("Globally ignoring simultaneous collision") end
+  end
+end
+
+#include ~/github/tts-lib/Utils.ttslua

@@ -1,0 +1,69 @@
+<XmlLayout xmlns="http://www.w3schools.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:noNamespaceSchemaLocation="../../../Configuration/XmlLayout.xsd">
+
+<Include src="XML_defaults.xml"/>
+
+<Defaults>
+  <Panel raycastTarget="false" />
+  <Panel class="Main" rotation="0 0 180" position="0 0 -20" scale="2 2" />
+  <Text class="XXL" fontSize="40" />
+  <Button class="OrderButton" hoverClass="orderHover" pressClass="" selectClass="" color="rgba(0,0,0,0)" onClick="buttonClick" width="160" height="80"/>
+  <Button class="OrderHover" fontSize="40" text="Select" textColor="rgb(0.9,0.9,0)" textShadow="rgba(0,0,0,1)"/>
+</Defaults>
+
+<!-- Button Used panel -->
+<Panel id="used" active="true" visibility="Pink" class="Main Base" color="Gray" height="160" width="160" offsetXY="0 0">
+  <Text class="XXL" text="Used" color="White"/>
+</Panel>
+
+<!-- Player Selected panel -->
+<Panel id="selected" active="false" class="Main Light Base" height="100" width="160" padding="10" offsetXY="0 -200">
+  <Panel class="Dark Viewport">
+    <Panel id="player_pnl" class="Base" color="Purple">
+      <Text id="player_txt" class="XXL" text="Purple" color="White"/>
+    </Panel>
+  </Panel>
+</Panel>
+
+<!-- Used panel -->
+<Panel id="button" active="false" class="Main Base Clear" height="100" width="160" position="0 -50 -10" >
+  <Button class="OrderButton"/>
+</Panel>
+
+<!-- Info panel -->
+<Panel id="info" active="false" class="Main" height="100" width="150" offsetXY="0 280">
+  <TableLayout columnWidths="50 50 50 50 50">
+    <Row id="info_row_1" preferredHeight="50">
+      <Cell id="info_1_cell" padding="5">
+        <Panel id="info_1_pnl" class="Base" color="Brown">
+          <Text id="info_1_txt" class="L" text="B" color="White"/>
+        </Panel>
+      </Cell>
+      <Cell id="info_2_cell" padding="5">
+        <Panel id="info_2_pnl" class="Base" color="Red">
+          <Text id="info_2_txt" class="L" text="R" color="White"/>
+        </Panel>
+      </Cell>
+      <Cell id="info_3_cell" padding="5">
+        <Panel id="info_3_pnl" class="Base" color="Green">
+          <Text id="info_3_txt" class="L" text="G" color="White"/>
+        </Panel>
+      </Cell>
+    </Row>
+    <Row id="info_row_2" preferredHeight="50">
+      <Cell id="info_4_cell" padding="5">
+        <Panel id="info_4_pnl" class="Base" color="Purple">
+          <Text id="info_4_txt" class="L" text="P" color="White"/>
+        </Panel>
+      </Cell>
+      <Cell id="info_5_cell" padding="5">
+        <Panel id="info_5_pnl" class="Base" color="Yellow">
+          <Text id="info_5_txt" class="L" text="Y" color="White"/>
+        </Panel>
+      </Cell>
+    </Row>
+  </TableLayout>
+</Panel>
+
+
+</XmlLayout>

@@ -1,5 +1,319 @@
+--board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
 
-function onLoad(save_data)
-  log("El Grande loading")
+env = {}
+env.debug = true
+env.trace = true
+env.test_players = {"Brown","Red","Green","Purple","Yellow"}
+-- env.test_players = {"Red","Green","Purple","Yellow"}
+env.in_dev = false
+env.use_saved_data = false
+env.save_stats = false
+
+GD = {}
+
+function onLoad(saved_data)
+  if not(env.in_dev) then getObjectFromGUID(C.guids.board).interactable = false end
+  if not(env.use_saved_data) then saved_data = "" end
+  if saved_data ~= "" then
+    if env.trace then log("Global:onLoad(): saved data load") end
+    GD = JSON.decode(saved_data)
+    --TODO: restore game
+  else
+    if env.trace then log("Global:onload(): fresh load") end
+    GD.env = {}
+    GD.state = {}
+    GD.players = {}
+    GD.player_order = {}
+    GD.start_player = ""
+    GD.orderButtons = simpleDeepCopy(C.order_buttons)
+    for _,e in pairs(GD.orderButtons) do
+      e.selected = false
+      e.button_on = false
+      e.players = {}
+      e.visibility = {}
+      e.used = {}
+    end
+    GD.regions = simpleDeepCopy(C.region_info)
+    for _,e in pairs(GD.regions) do
+      e.king = false
+      e.grandes = {Brown=false,Red=false,Green=false,Purple=false,Yellow=false}
+      e.caballeros = {Brown={},Red={},Green={},Purple={},Yellow={}}
+    end
+    GD.castillo = {Brown={},Red={},Green={},Purple={},Yellow={},}
+    GD.round = 0
+    GD.action_cards = {}
+    GD.state = "loaded"
+    GD.phase = ""
+    UI.setAttribute("start_pnl","active",true)
+  end
+  getObjectFromGUID(C.guids.castillo).call("updateUI",GD.castillo)
 end
+
+--[[ Save game state ]]
+function onSave()
+  local save_data = JSON.encode(GD)
+  if env.save_stats then
+    log("Saved data length: "..tostring(#save_data))
+    if env.debug then log(save_data) end
+  end
+  return save_data
+end
+
+function restoreGame()
+  if env.trace then log("restoreGame()") end
+  if GD.state == "loaded" then
+    UI.setAttribute("start_pnl","active",true)
+  else
+    getObjectFromGUID(C.guids.board).UI.setAttribute("regions","active",true)
+    if GD.phase == "bidding" then
+      for g,e in pairs(GD.orderButtons) do
+        local button = getObjectFromGUID(g)
+        button.call("updateUI",e)
+      end
+    elseif GD.phase == "actions" then
+
+      --TODO:
+
+    else
+      log("ERROR: restoreGame(): unknown game phase")
+    end
+  end
+end
+
+--[[ Set up the game environment.  TODO: just testing right now]]
+function setupGame()
+  if env.trace then log("setupGame()") end
+  UI.setAttribute("start_pnl","active",false)
+  -- setup players
+  local seated = getSeatedPlayers()
+  if env.test_players then
+    seated = env.test_players
+  else
+    if #seated < 2 then
+      broadcastToAll("At least 2 players required to play this game")
+      return
+    end
+  end
+  local n = math.random(#C.table_order)
+  log("random start number is "..tostring(n))
+  -- for i,player in ipairs(C.table_order) do
+  for i=1,#C.table_order do
+    local player = C.table_order[n]
+    if contains(seated,player) then
+      table.insert(GD.player_order,player)
+      GD.players[player] = {}
+    end
+    if n == #C.table_order then n=1 else n=n+1 end
+  end
+  for g,e in pairs(GD.orderButtons) do
+    e.players = simpleDeepCopy(GD.player_order)
+    e.visibility = simpleDeepCopy(GD.player_order)
+    e.button_on = true
+    local button = getObjectFromGUID(g)
+    button.call("updateUI",e)
+  end
+  for i=1,4 do
+    getObjectFromGUID(C.guids.stacks[i]).shuffle()
+  end
+  getObjectFromGUID(C.guids.board).UI.setAttribute("regions","active",true)
+  startPlacementPhase()
+end
+
+function startPlacementPhase()
+  if env.trace then log("startPlacementPhase()") end
+  GD.phase = "placement"
+
+  --TODO: show dialog
+  --TODO: set up player tracking
+  --TODO: handle in addCaballero and setGrande
+  --TODO: enable player done button
+  --TODO: start bid phase on last player
+
+  startBidPhase()
+end
+
+--[[ Setup and begin the order bidding phase ]]
+function startBidPhase()
+  if env.trace then log("startBidPhase()") end
+  broadcastToAll("Players select action order bids")
+  GD.phase = "bidding"
+  -- Move round marker
+  GD.round = GD.round + 1
+  local marker = getObjectFromGUID(C.guids.round_marker)
+  marker.setPosition(C.round_marker_positions[GD.round])
+  -- Set up the bid tracker
+  GD.players_to_bid = simpleDeepCopy(GD.player_order)
+  -- Reveal Action Cards
+  if #GD.action_cards > 0 then
+    for _,g in ipairs(GD.action_cards) do
+      getObjectFromGUID(g).destruct()
+    end
+  end
+  GD.action_cards = {}
+  for i=1,4 do
+    local stack = getObjectFromGUID(C.guids.stacks[i])
+    local pos = stack.getPosition()
+    pos.y = pos.y + 3
+    local card = stack.takeObject({position=pos,flip=true})
+    table.insert(GD.action_cards, card.getGUID())
+  end
+  local king_card = getObjectFromGUID(C.guids.stacks[5])
+  if king_card.is_face_down then
+    king_card.setLock(false)
+    king_card.flip()
+  end
+  -- Activate bid buttons
+  for g,d in pairs(GD.orderButtons) do
+    d.button_on = true
+    d.selected = false
+    d.visibility = simpleDeepCopy(d.players)
+    getObjectFromGUID(g).call("updateUI",d)
+  end
+
+end
+
+--[[ Setup and begin the action phase  ]]
+function startActionPhase()
+  if env.trace then log("startActionPhase()") end
+  GD.phase = "actions"
+  -- Reorder player turn order based on bids
+  local temp = {}
+  for g,d in pairs(GD.orderButtons) do
+    log("selected is "..tostring(d.selected))
+    if d.selected then
+      table.insert(temp,d.selected)
+    end
+    d.button_on = false
+  end
+  assert(#temp == #GD.player_order, "FATAL: startActionPhase() uable to build new player order from selected bids")
+  GD.player_order = temp
+  GD.start_player = GD.player_order[1]
+  --now update the button display with reordered players
+  for g,d in pairs(GD.orderButtons) do
+    local temp = {}
+    for _,c in ipairs(GD.player_order) do if not(contains(d.used,c)) then table.insert(temp,c) end end
+    d.players = simpleDeepCopy(temp)
+    getObjectFromGUID(g).call("updateUI",d)
+  end
+  log("Start Player is "..GD.start_player)
+  broadcastToAll("Players perform actions beginning with "..GD.start_player)
+  -- Activate buttons on action cards
+  --TODO activate buttons on cards
+end
+
+--[[ A player clicked on an order button. Passthrough from the button object with parameters.
+  player_color: color of the player who clicked
+  guid: the guid of the button
+]]
+function orderButtonClick(params)
+  if env.trace then log("orderButtonClick()") end
+  assert(params, "orderButtonClick(): missing params")
+  local pcol = params.player_color
+  local guid = params.guid
+  local button_data = GD.orderButtons[guid]
+  if not(button_data.selected)  then
+    button_data.selected = pcol
+    table.remove(button_data.players,indexOf(button_data.players,pcol))
+    table.insert(button_data.used,pcol)
+    for g,e in pairs(GD.orderButtons) do
+      table.remove(e.visibility,indexOf(e.visibility,pcol))
+      getObjectFromGUID(g).call("updateUI",e)
+    end
+  end
+
+  --TODO: an undo for this
+  --TODO: a done button that triggers the check below
+  table.remove(GD.players_to_bid,indexOf(GD.players_to_bid,pcol))
+  if #GD.players_to_bid == 0 then
+    startActionPhase()
+  end
+
+end
+
+--[[ Global handler for collisions with regions. Uses a lock to prevent multiple triggers by the same object.
+    It's Global to prevent multiple regions from also triggering when dropped on borders.
+]]
+g_global_collision_lock = {}
+function tryCollision(guid)
+  if env.trace then log("tryCollision() "..tostring(guid)) end
+  if g_global_collision_lock[guid] then return false end
+  g_global_collision_lock[guid] = true
+  local obj = getObjectFromGUID(guid)
+  Wait.condition(function() g_global_collision_lock[guid] = nil end, function() return obj.resting end)
+  return true
+end
+
+--[[ Add a Caballero to a region. ]]
+function addCaballero(params)
+  if env.trace then log("addCaballero() "..params.region_guid..", "..params.color..", "..params.caballero_guid) end
+  local region = params.region_guid
+  local color = params.color
+  local caballero = params.caballero_guid
+  if not(GD.regions[region].caballeros[color][caballero]) then
+    GD.regions[region].caballeros[color][caballero] = true
+    for g,r in pairs(GD.regions) do
+      if g ~= region then r.caballeros[color][caballero] = nil end
+    end
+  end
+  updateUI()
+end
+
+--[[ Sets a Grande in a region when player drops it there.]]
+function setGrande(params)
+  if env.trace then log("setGrande() "..params.region_guid..", "..params.color) end
+  local region = params.region_guid
+  local color = params.color
+  for g,r in pairs(GD.regions) do
+    if g == region then r.grandes[color] = true
+    else r.grandes[color] = false
+    end
+  end
+  updateUI()
+end
+
+--[[ Sets the King in a region when a player drops it there. ]]
+function setKing(region_guid)
+  if env.trace then log("setKing() "..tostring(region_guid)) end
+  for g,region in pairs(GD.regions) do
+    if g == region_guid then region.king = true
+    else region.king = false
+    end
+  end
+  updateUI()
+end
+
+--[[ Adds a Caballero to the Castillo when a player drops it into the bag. ]]
+function addToCastillo(params)
+  if env.trace then log("setKing() "..tostring(params)) end
+  local color = params.color
+  local guid = params.guid
+  table.insert(GD.castillo[color],{guid})
+  getObjectFromGUID(C.guids.castillo).call("updateUI",GD.castillo)
+end
+
+--[[ Update UIs with current state ]]
+function updateUI()
+  if env.trace then log("updateUI()") end
+  local board = getObjectFromGUID(C.guids.board)
+  for g,info in pairs(GD.regions) do
+    local r = info.scoring_order
+    if info.king then
+      board.UI.setClass("R"..tostring(r).."_H_pnl","Light Base")
+      board.UI.setClass("R"..tostring(r).."_H_txt","Title")
+    else
+      board.UI.setClass("R"..tostring(r).."_H_pnl","Clear")
+      board.UI.setClass("R"..tostring(r).."_H_txt","M LGray")
+    end
+    for color,present in pairs(info.grandes) do
+      board.UI.setAttribute(color.."_R"..tostring(r).."_G_pnl","active",present)
+    end
+    for color,list in pairs(info.caballeros) do
+      board.UI.setAttribute(color.."_R"..tostring(r).."_C_pnl","active", (sizeOf(list) > 0))
+      board.UI.setAttribute(color.."_R"..tostring(r).."_C_txt","text", tostring(sizeOf(list)))
+    end
+  end
+end
+
+#include ~/github/tts-el_grande/Constants.ttslua
+#include ~/github/tts-lib/Utils.ttslua

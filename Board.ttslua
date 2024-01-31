@@ -1,0 +1,5 @@
+
+
+function onLoad(saved_state)
+  log("Main board loaded")
+end

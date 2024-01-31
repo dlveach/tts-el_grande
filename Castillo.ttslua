@@ -1,0 +1,50 @@
+
+env = {}
+
+--[[ TTS Load function --]]
+function onLoad(saved_data)
+  Wait.frames(function()  --wait for Global to load
+    local tmp = Global.getTable("env")
+    if tmp == nil then return end --supress global load errors
+    env = simpleDeepCopy(tmp)
+    env.loaded = true
+    if env.trace then log("Castillo loaded") end
+  end, 1)
+end
+
+--[[ Handle something entering the Castillo. TODO: move Castillo Caballero data to Global.
+    Only allow Caballeros to enter, everything else bump to the side and notify players.
+--]]
+function tryObjectEnter(obj)
+  if obj.hasTag("Caballero") or obj.hasTag("Grande") then
+    if obj.hasTag("Caballero") then
+      local color = Split(obj.getName()," ")[1]
+      assert(color, "Castillo: tryObjectEnter(): could not determine obj color")
+      Global.call("addToCastillo",{guid=obj.guid,color=color})
+    end
+  else
+    broadcastToAll(obj.getName()..":"..obj.getGUID().." cannot enter the Castillo")
+    pos = obj.getPosition()
+    pos.x = pos.x - 3
+    pos.y = pos.y + 2
+    pos.z = pos.z - 3
+    obj.setPosition(pos)
+    return false
+  end
+  return true
+end
+
+--[[ Called from global with current Castillo data to update the UI.  ]]
+function updateUI(data)
+  if env.trace then log("updateUI()") end
+  for color,list in pairs(data) do
+    if #list > 0 then
+      self.UI.setAttribute(color.."_txt","text",tostring(#list))
+      self.UI.setAttribute(color.."_pnl","active",true)
+    else
+      self.UI.setAttribute(color.."_pnl","active",false)
+    end
+  end
+end
+
+#include ~/github/tts-lib/Utils.ttslua

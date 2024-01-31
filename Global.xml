@@ -1,0 +1,23 @@
+<XmlLayout xmlns="http://www.w3schools.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:noNamespaceSchemaLocation="../../../Configuration/XmlLayout.xsd">
+
+<Include src="XML_defaults.xml"/>
+
+<!-- Start Panel -->
+<Panel id="start_pnl" active="false" class="Draggable Light Base" height="200" width="320" padding="10">
+  <Panel class="Dark Viewport">
+    <TableLayout>
+      <Row preferredHeight="60">
+        <Cell><Panel class="Light Title"><Text id="start_title" class="L Yellow" text="After all players seated"/></Panel></Cell>
+      </Row>
+      <Row preferredHeight="100">
+        <Cell padding="60 60 25 25"><Button onClick="setupGame" text="Start Game"/></Cell>
+      </Row>
+      <Row preferredHeight="20">
+        <Cell><Text id="game_version" class="Tiny Gray" alignment="UpperCenter" text="Version X.X.X dev branch"/></Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+
+</XmlLayout>

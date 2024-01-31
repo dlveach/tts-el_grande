@@ -1,0 +1,53 @@
+C = {}
+
+C.table_order = {"Yellow","Purple","Green","Red","Brown"}
+C.guids = {
+  board = "dcccbf",
+  castillo = "53146e",
+  round_marker = "63df24",
+  stacks = {"121e35","c39846","b6a2b0","32a13a","c275fa",}
+}
+
+C.king_card_position = {-39.87, 0.97, 21.43}
+
+C.round_marker_positions = {
+  {-27.37, 1.60, 10.82},
+  {-27.37, 1.60, 7.78},
+  {-27.37, 1.60, 4.64},
+  {-27.37, 1.60, 1.58},
+  {-27.37, 1.60, -1.61},
+  {-27.37, 1.60, -4.68},
+  {-27.37, 1.60, -7.72},
+  {-27.37, 1.60, -10.85},
+  {-27.37, 1.60, -13.93},
+}
+
+C.region_GUIDs = { "7593ad","9831c2","034b56","e63e4a","ff0a84","719679","5c52ab","d53798","c74830", }
+
+C.region_info = {
+  ["7593ad"] = { name = "Galicia", scoring_order = 1, scoring = {4,2,0}, },
+  ["9831c2"] = { name = "Basque Country", scoring_order = 2, scoring = {5,3,1}, },
+  ["034b56"] = { name = "Old Castille", scoring_order = 3, scoring = {6,4,2}, },
+  ["e63e4a"] = { name = "Aragon", scoring_order = 4, scoring = {5,4,1}, },
+  ["ff0a84"] = { name = "Catalonia", scoring_order = 5, scoring = {4,2,1}, },
+  ["719679"] = { name = "New Castille", scoring_order = 6, scoring = {7,4,2}, },
+  ["5c52ab"] = { name = "Valencia", scoring_order = 7, scoring = {5,3,2}, },
+  ["d53798"] = { name = "Seville", scoring_order = 8, scoring = {4,3,1}, },
+  ["c74830"] = { name = "Granada", scoring_order = 9, scoring = {6,3,1}, },
+}
+
+C.order_buttons = {
+  ["78f122"] = { number = 1, court = 6,},
+  ["a21eee"] = { number = 2, court = 5,},
+  ["544a08"] = { number = 3, court = 5,},
+  ["b42371"] = { number = 4, court = 4,},
+  ["717455"] = { number = 5, court = 4,},
+  ["53f27e"] = { number = 6, court = 3,},
+  ["318d09"] = { number = 7, court = 3,},
+  ["d19b3b"] = { number = 8, court = 2,},
+  ["9d3976"] = { number = 9, court = 2,},
+  ["f098cb"] = { number = 10, court = 1,},
+  ["13c06c"] = { number = 11, court = 1,},
+  ["176543"] = { number = 12, court = 0,},
+  ["a30dbe"] = { number = 13, court = 0,},
+}

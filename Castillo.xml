@@ -1,0 +1,30 @@
+<XmlLayout xmlns="http://www.w3schools.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:noNamespaceSchemaLocation="../../../Configuration/XmlLayout.xsd">
+
+<Include src="XML_defaults.xml"/>
+
+<Defaults>
+  <Panel raycastTarget="false" />
+  <Text color="White" />
+  <Text class="XL" fontSize="56" />
+  <Text class="XXL" fontSize="70" />
+</Defaults>
+
+<Panel id="info" width="720" height="240" class="Light Base" position="0 280 430" rotation="0 0 180" padding="10">
+  <Panel class="Dark Viewport">
+    <TableLayout columnWidths="140 140 140 140 140">
+      <Row preferredHeight="80">
+        <Cell columnSpan="5"><Panel class="Light Title"><Text class="XL Title" text="Castillo"/></Panel></Cell>
+      </Row>
+      <Row preferredHeight="140">
+        <Cell padding="10"><Panel id="Brown_pnl" active="false" class="Base" color="Brown"><Text id="Brown_txt" class="XXL" text="0"/></Panel></Cell>
+        <Cell padding="10"><Panel id="Red_pnl" active="false" class="Base" color="Red"><Text id="Red_txt" class="XXL" text="0"/></Panel></Cell>
+        <Cell padding="10"><Panel id="Green_pnl" active="false" class="Base" color="Green"><Text id="Green_txt" class="XXL" text="0"/></Panel></Cell>
+        <Cell padding="10"><Panel id="Purple_pnl" active="false" class="Base" color="Purple"><Text id="Purple_txt" class="XXL" text="0"/></Panel></Cell>
+        <Cell padding="10"><Panel id="Yellow_pnl" active="false" class="Base" color="Yellow"><Text id="Yellow_txt" class="XXL" text="0"/></Panel></Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+
+</XmlLayout>
