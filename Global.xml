@@ -20,4 +20,71 @@
   </Panel>
 </Panel>
 
+<!-- Player wait panel -->
+<Panel id="player_wait_pnl" active="false" class="Draggable Light Base" width="280" height="380" padding="10" rectAlignment="UpperLeft">
+  <Panel class="Dark Viewport">
+    <TableLayout columnWidths="140 0">
+      <Row preferredHeight="100">
+        <Cell columnSpan="2" padding="5">
+          <Text id="wait_message_txt" class="M">
+            Waiting on players to follow
+            instructions on what to do
+            in this message area.
+          </Text>
+        </Cell>
+      </Row>
+      <Row id="wait_p1_row" preferredHeight="50">
+        <Cell padding="10 5 5 5">
+          <Panel id="wait_p1_pnl" class="base" color="Yellow">
+            <Text id="wait_p1_txt" class="L" text="Yellow"/>
+          </Panel>
+        </Cell>
+        <Cell>
+          <Text id="wait_p1_status_txt" class="L" text="Waiting"/>
+        </Cell>
+      </Row>
+      <Row id="wait_p2_row" preferredHeight="50">
+        <Cell padding="10 5 5 5">
+          <Panel id="wait_p2_pnl" class="base" color="Purple">
+            <Text id="wait_p2_txt" class="L" text="Purple"/>
+          </Panel>
+        </Cell>
+        <Cell>
+          <Text id="wait_p2_status_txt" class="L" text="Waiting"/>
+        </Cell>
+      </Row>
+      <Row id="wait_p3_row" preferredHeight="50">
+        <Cell padding="10 5 5 5">
+          <Panel id="wait_p3_pnl" class="base" color="Green">
+            <Text id="wait_p3_txt" class="L" text="Green"/>
+          </Panel>
+        </Cell>
+        <Cell>
+          <Text id="wait_p3_status_txt" class="L" text="Waiting"/>
+        </Cell>
+      </Row>
+      <Row id="wait_p4_row" preferredHeight="50">
+        <Cell padding="10 5 5 5">
+          <Panel id="wait_p4_pnl" class="base" color="Red">
+            <Text id="wait_p4_txt" class="L" text="Red"/>
+          </Panel>
+        </Cell>
+        <Cell>
+          <Text id="wait_p4_status_txt" class="L" text="Waiting"/>
+        </Cell>
+      </Row>
+      <Row id="wait_p5_row" preferredHeight="50">
+        <Cell padding="10 5 5 5">
+          <Panel id="wait_p5_pnl" class="base" color="Brown">
+            <Text id="wait_p5_txt" class="L" text="Brown"/>
+          </Panel>
+        </Cell>
+        <Cell>
+          <Text id="wait_p5_status_txt" class="L" text="Waiting"/>
+        </Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+
 </XmlLayout>

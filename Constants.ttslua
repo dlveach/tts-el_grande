@@ -1,12 +1,15 @@
 C = {}
 
 C.table_order = {"Yellow","Purple","Green","Red","Brown"}
-C.guids = {
-  board = "dcccbf",
-  castillo = "53146e",
-  round_marker = "63df24",
-  stacks = {"121e35","c39846","b6a2b0","32a13a","c275fa",}
-}
+
+C.board = "dcccbf"
+C.castillo = "53146e"
+C.round_marker = "63df24"
+C.stacks = {"121e35","c39846","b6a2b0","32a13a","c275fa",}
+C.player_boards = {Brown="01cf4f",Red="40aa3a",Green="5688f0",Purple="7289a1",Yellow="edd3ca",}
+C.decks = {Brown="cf4c2e",Red="9c36f4",Green="634e7c",Purple="7e16a2",Yellow="118ba3",}
+C.grande_template = "a43cfd"
+C.caballero_template = "222ecb"
 
 C.king_card_position = {-39.87, 0.97, 21.43}
 
@@ -22,6 +25,40 @@ C.round_marker_positions = {
   {-27.37, 1.60, -13.93},
 }
 
+C.grande_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"a43cfd","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Grande","Snap":true,"Sticky":true,"Tags":["Grande"],"Tooltip":true,"Transform":{"posX":-40.3152770996094,"posY":1.46000003814697,"posZ":-19.7744293212891,"rotX":3.77321953237697E-07,"rotY":-4.34147695571596E-09,"rotZ":-7.94435166540097E-08,"scaleX":1,"scaleY":1,"scaleZ":1},"Value":0,"XmlUI":""}'
+C.caballero_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"222ecb","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Caballero","Snap":true,"Sticky":true,"Tags":["Caballero"],"Tooltip":true,"Transform":{"posX":-40.3260803222656,"posY":1.21000027656555,"posZ":-21.2416534423828,"rotX":-5.58641488623834E-07,"rotY":-1.5730960512883E-05,"rotZ":-3.4076799693139E-07,"scaleX":0.500000417232513,"scaleY":0.500000417232513,"scaleZ":0.500000417232513},"Value":0,"XmlUI":""}'
+
+C.start_pos_l = {{0.939357, 0.529676, -0.695793},{0.995675, 0.349792, -0.494914},{0.883034, 0.349735, -0.494917},} --Grande and 2 Caballeros, for initial placement
+
+C.prov_pos_l = {
+  {1.138334, 0.350136, 0.12461},{1.025694, 0.350078, 0.124606},{0.913054, 0.350021, 0.124603},{0.800415, 0.349963, 0.1246},{0.687775, 0.349906, 0.124597},
+  {1.138334, 0.350136, 0.237243},{1.025694, 0.350078, 0.237243},{0.913054, 0.350021, 0.237243},{0.800415, 0.349963, 0.237243},{0.687775, 0.349906, 0.237243},
+  {1.138334, 0.350136, 0.349883},{1.025694, 0.350078, 0.349883},{0.913054, 0.350021, 0.349883},{0.800415, 0.349963, 0.349883},{0.687775, 0.349906, 0.349883},
+  {1.138334, 0.350136, 0.462523},{1.025694, 0.350078, 0.462523},{0.913054, 0.350021, 0.462523},{0.800415, 0.349963, 0.462523},{0.687775, 0.349906, 0.462523},
+  {1.138334, 0.350136, 0.575163},{1.025694, 0.350078, 0.575163},{0.913054, 0.350021, 0.575163},{0.800415, 0.349963, 0.575163},{0.687775, 0.349906, 0.575163},
+  {1.138334, 0.350136, 0.687803},{1.025694, 0.350078, 0.687803},{0.913054, 0.350021, 0.687803},{0.800415, 0.349963, 0.687803},{0.687775, 0.349906, 0.687803},
+}
+C.court_pos_l = {
+  {-0.673292, 0.349221, 0.145209},{-0.785932, 0.349164, 0.145209},{-0.898572, 0.349106, 0.145209},{-1.011212, 0.349049, 0.145209},{-1.123852, 0.348991, 0.145209},
+  {-0.673292, 0.349221, 0.257849},{-0.785932, 0.349164, 0.257849},{-0.898572, 0.349106, 0.257849},{-1.011212, 0.349049, 0.257849},{-1.123852, 0.348991, 0.257849},
+  {-0.673292, 0.349221, 0.370489},{-0.785932, 0.349164, 0.370489},{-0.898572, 0.349106, 0.370489},{-1.011212, 0.349049, 0.370489},{-1.123852, 0.348991, 0.370489},
+  {-0.673292, 0.349221, 0.483129},{-0.785932, 0.349164, 0.483129},{-0.898572, 0.349106, 0.483129},{-1.011212, 0.349049, 0.483129},{-1.123852, 0.348991, 0.483129},
+  {-0.673292, 0.349221, 0.595769},{-0.785932, 0.349164, 0.595769},{-0.898572, 0.349106, 0.595769},{-1.011212, 0.349049, 0.595769},{-1.123852, 0.348991, 0.595769},
+  {-0.673292, 0.349221, 0.708409},{-0.785932, 0.349164, 0.708409},{-0.898572, 0.349106, 0.708409},{-1.011212, 0.349049, 0.708409},{-1.123852, 0.348991, 0.708409},
+}
+
+C.disk_rotations = {
+  "0 0 180",  --Region 1: Galicia
+  "0 0 140",  --Region 2: Basque Country
+  "0 0 100",   --Region 3: Old Castille
+  "0 0 60",  --Region 4: Aragon
+  "0 0 20", --Region 5: Catalonia
+  "0 0 -20",    --Region 6: New Castille
+  "0 0 -60", --Region 7: Valencia
+  "0 0 -100",  --Region 8: Seville
+  "0 0 -140",  --Region 9: Granada
+}
+
 C.region_GUIDs = { "7593ad","9831c2","034b56","e63e4a","ff0a84","719679","5c52ab","d53798","c74830", }
 
 C.region_info = {
@@ -35,7 +72,7 @@ C.region_info = {
   ["d53798"] = { name = "Seville", scoring_order = 8, scoring = {4,3,1}, },
   ["c74830"] = { name = "Granada", scoring_order = 9, scoring = {6,3,1}, },
 }
-
+C.button_guids = {"78f122","a21eee","544a08","b42371","717455","53f27e","318d09","d19b3b","9d3976","f098cb","13c06c","176543","a30dbe",}
 C.order_buttons = {
   ["78f122"] = { number = 1, court = 6,},
   ["a21eee"] = { number = 2, court = 5,},

@@ -1,10 +1,7 @@
 
 
-T = {}
 env = {}
-GD = {}
-
---TODO: get rid of saved state!!!! move to Global
+T = {}
 
 --[[ TTS load function. Wait a frame to let Global load --]]
 function onLoad(saved_data)
@@ -15,55 +12,16 @@ function onLoad(saved_data)
     local info = simpleDeepCopy(Global.getTable("C").order_buttons[self.getGUID()])
     T.number = info.number
     T.name = "Order Button "..tostring(T.number)
+    self.UI.setAttribute("used_img","image","Button_"..tostring(T.number).."_used")
     if env.trace then log(T.name.." loaded") end
     env.loaded = true
   end, 1)
 end
---
+
 --[[ Handler for player clicking a button.  Passthrough to Global with button number. ]]
 function buttonClick(player, mouse, id)
   if env.trace then log(T.name..": buttonClick() "..player.color) end
   Global.call("orderButtonClick", {player_color=player.color,guid=self.getGUID()})
-end
---
---[[ Update the UI for this button with current state. --]]
-function updateUI(button_data)
-  if env.trace then log(T.name..": updateUI()") end
-  -- log(button_data)
-  if button_data.button_on then
-    local str="Pink"
-    for _,c in ipairs(button_data.visibility) do str = str .."|"..c end
-    self.UI.setAttribute("button","visibility",str)
-  end
-  self.UI.setAttribute("button","active",button_data.button_on)
-  if button_data.selected then
-    self.UI.setAttribute("player_pnl","color",button_data.selected)
-    self.UI.setAttribute("player_txt","text",button_data.selected)
-    self.UI.setAttribute("selected","active",true)
-    self.UI.setAttribute("button","active",false)
-    self.UI.setAttribute("used","active",false)
-  else
-    self.UI.setAttribute("selected","active",false)
-    self.UI.setAttribute("used","active",true)
-  end
-  local str="Pink"
-  for _,c in ipairs(button_data.used) do str = str .."|"..c end
-  self.UI.setAttribute("used","visibility",str)
-  if #button_data.players > 0 then
-    self.UI.setAttribute("info_row_2","active",#button_data.players > 3)
-    for i,player in ipairs(button_data.players) do
-      local initial = string.sub(player, 1, 1)
-      self.UI.setAttribute("info_"..tostring(i).."_pnl","color",player)
-      self.UI.setAttribute("info_"..tostring(i).."_txt","text",initial)
-      self.UI.setAttribute("info_"..tostring(i).."_pnl","active",true)
-    end
-    for i=#button_data.players+1,5 do
-      self.UI.setAttribute("info_"..tostring(i).."_pnl","active",false)
-    end
-    self.UI.setAttribute("info","active",true)
-  else
-    self.UI.setAttribute("info","active",false)
-  end
 end
 
 #include ~/github/tts-lib/Utils.ttslua

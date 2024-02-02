@@ -12,39 +12,29 @@ function onLoad(saved_data)
   end, 1)
 end
 
---[[ Handle something entering the Castillo. TODO: move Castillo Caballero data to Global.
-    Only allow Caballeros to enter, everything else bump to the side and notify players.
+--[[ Handle something entering the Castillo.
+    Only allow Caballeros or Grandes to enter,
+    everything else bump to the side and notify players.
 --]]
 function tryObjectEnter(obj)
   if obj.hasTag("Caballero") or obj.hasTag("Grande") then
+    local color = Split(obj.getName()," ")[1]
+    assert(color, "Castillo: tryObjectEnter(): could not determine obj color")
+    local success = false
     if obj.hasTag("Caballero") then
-      local color = Split(obj.getName()," ")[1]
-      assert(color, "Castillo: tryObjectEnter(): could not determine obj color")
-      Global.call("addToCastillo",{guid=obj.guid,color=color})
-    end
-  else
-    broadcastToAll(obj.getName()..":"..obj.getGUID().." cannot enter the Castillo")
-    pos = obj.getPosition()
-    pos.x = pos.x - 3
-    pos.y = pos.y + 2
-    pos.z = pos.z - 3
-    obj.setPosition(pos)
-    return false
-  end
-  return true
-end
-
---[[ Called from global with current Castillo data to update the UI.  ]]
-function updateUI(data)
-  if env.trace then log("updateUI()") end
-  for color,list in pairs(data) do
-    if #list > 0 then
-      self.UI.setAttribute(color.."_txt","text",tostring(#list))
-      self.UI.setAttribute(color.."_pnl","active",true)
+      success = Global.call("addToCastillo",{guid=obj.guid,color=color,type="Caballero"})
     else
-      self.UI.setAttribute(color.."_pnl","active",false)
+      success = Global.call("addToCastillo",{guid=obj.guid,color=color,type="Grande"})
     end
   end
+  if not(success) then
+    --push object to the side
+    pos = obj.getPosition()
+    pos.x = pos.x - 4
+    pos.y = pos.y + 2
+    obj.setPosition(pos)
+  end
+  return success
 end
 
 #include ~/github/tts-lib/Utils.ttslua

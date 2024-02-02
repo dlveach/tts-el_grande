@@ -1,31 +1,65 @@
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
-
+-- retain cube and number on buttons when used
+-- staging area for return cubes to province/court
+-- highlight (decal?) cubes that have been moved during the action, before player hits done
 
 env = {}
+env.version = "0.1 experimental"
 env.debug = true
 env.trace = true
-env.test_players = {"Brown","Red","Green","Purple","Yellow"}
--- env.test_players = {"Red","Green","Purple","Yellow"}
+-- env.test_players = {"Brown","Red","Green","Purple","Yellow"}
+env.test_players = {"Red","Green","Purple"}
 env.in_dev = false
 env.use_saved_data = false
 env.save_stats = false
+-- defaults for game environment settings
+env.game_verbose = truez
+env.game_use_cards = false --TODO: future option
 
 GD = {}
 
 function onLoad(saved_data)
-  if not(env.in_dev) then getObjectFromGUID(C.guids.board).interactable = false end
+  if not(env.in_dev) then getObjectFromGUID(C.board).interactable = false end
+  log("*************************************")
+  log("Disigner:       TBD")
+  log("Artist:         TBD")
+  log("Year Released:  1995")
+  log("Publisher:      ")
+  log("TTS Scripting:  David Veach; 2024")
+  log("Version: "..env.version)
+  log("*************************************")
+  UI.setAttribute("game_version","text","Version "..env.version)
+
+  if env.test_players then
+    UI.setAttribute("start_title","text","After all players seated:\n*** Test Players Enabled ***")
+    log("WARN: Test players enabled")
+  end
+
   if not(env.use_saved_data) then saved_data = "" end
   if saved_data ~= "" then
-    if env.trace then log("Global:onLoad(): saved data load") end
+    if env.trace then log("Global:onLoad(): loading from saved data") end
     GD = JSON.decode(saved_data)
-    --TODO: restore game
+    restoreGame()
   else
-    if env.trace then log("Global:onload(): fresh load") end
+    if env.trace then log("Global:onload(): initializing a fresh load") end
+    --persistent UI state tables
+    GD.states = {}
+    GD.states.UI = {}
+    GD.states.UI_class = {}
+    GD.states.object_UI = {}
+    GD.states.object_UI_class = {}
+    --persistent environment vars
     GD.env = {}
-    GD.state = {}
+    GD.env.verbose = env.game_verbose
+    GD.env.use_cards = env.game_use_cards
+    --player data
     GD.players = {}
     GD.player_order = {}
     GD.start_player = ""
+    GD.current_player = ""
+    --object tables
+    GD.caballeros = {}  --Brown={},Red={},Green={},Purple={},Yellow={},
+    GD.grandes = {}  --Brown="",Red="",Green="",Purple="",Yellow="",
     GD.orderButtons = simpleDeepCopy(C.order_buttons)
     for _,e in pairs(GD.orderButtons) do
       e.selected = false
@@ -41,13 +75,19 @@ function onLoad(saved_data)
       e.caballeros = {Brown={},Red={},Green={},Purple={},Yellow={}}
     end
     GD.castillo = {Brown={},Red={},Green={},Purple={},Yellow={},}
+    --Game data
     GD.round = 0
     GD.action_cards = {}
-    GD.state = "loaded"
+    GD.game_started = false
     GD.phase = ""
-    UI.setAttribute("start_pnl","active",true)
+    --TODO: set start dialog toggles
+    UI_setAttribute("start_pnl","active",true)
   end
-  getObjectFromGUID(C.guids.castillo).call("updateUI",GD.castillo)
+  updateCastilloUI()
+  math.randomseed(os.time())
+  --set up a hotkey to trigger UI reload.
+  clearHotkeys()
+  addHotkey("Reload all UI", function(player_color) reloadUI(player_color) end)
 end
 
 --[[ Save game state ]]
@@ -62,103 +102,283 @@ end
 
 function restoreGame()
   if env.trace then log("restoreGame()") end
-  if GD.state == "loaded" then
-    UI.setAttribute("start_pnl","active",true)
-  else
-    getObjectFromGUID(C.guids.board).UI.setAttribute("regions","active",true)
-    if GD.phase == "bidding" then
-      for g,e in pairs(GD.orderButtons) do
-        local button = getObjectFromGUID(g)
-        button.call("updateUI",e)
-      end
-    elseif GD.phase == "actions" then
-
-      --TODO:
-
-    else
-      log("ERROR: restoreGame(): unknown game phase")
+  --restore Global UI setAttribute()
+  for key,value in pairs(GD.states.UI) do
+    local id = Split(key, ':')[1]
+    local field = Split(key, ':')[2]
+    if not(UI.setAttribute(id, field, value)) then
+      log("WARN: restoreGame() unable to setAttribute() "..tostring(id)..", "..tostring(field)..", "..tostring(value))
     end
+  end
+  --restore Global UI setClass()
+  for id,value in pairs(GD.states.UI_class) do
+    if not(UI.setClass(id,value)) then
+      log("WARN: restoreGame() unable to setClass() "..tostring(id)..", "..tostring(value))
+    end
+  end
+  --restore object UI setAttribute()
+  for key,value in pairs(GD.states.object_UI) do
+    local params = Split(key,":")
+    local guid = params[1]
+    local id = params[2]
+    local field = params[3]
+    local obj = getObjectFromGUID(guid)
+    assert(obj, "restoreGame() restore object attributes, unable to locate object for guid "..tostring(guid))
+    if not(obj.UI.setAttribute(id, field, value)) then
+      log("WARN: restoreGame() unable to setAttribute() "..tostring(guid)..":"..tostring(id)..", "..tostring(field)..", "..tostring(value))
+    end
+  end
+  --restore object UI setClass()
+  for key,value in pairs(GD.states.object_UI) do
+    local params = Split(key,":")
+    local guid = params[1]
+    local id = params[2]
+    local obj = getObjectFromGUID(guid)
+    assert(obj, "restoreGame() restore objct classes, unable to locate object for guid "..tostring(guid))
+    if not(obj.UI.setClass(id,value)) then
+      log("WARN: restoreGame() unable to setClass() "..tostring(guid)..":"..tostring(id)..", "..tostring(value))
+    end
+  end
+
+  if GD.game_started then
+    updateBoardUI()()
+
+  --   if GD.phase == "bidding" then
+  --     for g,e in pairs(GD.orderButtons) do
+  --       local button = getObjectFromGUID(g)
+  --       button.call("updateUI",e)
+  --     end
+  --   elseif GD.phase == "actions" then
+  --
+  --     --TODO:
+  --
+  --   else
+  --     log("ERROR: restoreGame(): unknown game phase")
+  --   end
   end
 end
 
+--TODO: TESTING ignoring dupes in UI wrapper calls. Cut down UI overhead.
+
+--[[  Wrapper function for saving Global UI attributes for game restore. ]]
+function UI_setAttribute(id, field, value)
+  assert(type(id) == "string", "UI_setAttribute(): id must be a string")
+  assert(type(field) == "string", "UI_setAttribute(): field must be a string")
+  if GD.states.UI[id..":"..field] == value then return end
+  if env.trace then log("UI_setAttribute(): "..tostring(id)..", "..tostring(field)..", "..tostring(value)) end
+  UI.setAttribute(id, field, value)
+  GD.states.UI[id..":"..field] = value
+end
+
+--[[  Wrapper function for saving Global UI setClass for game restore. ]]
+function UI_setClass(id, value)
+  assert(type(id) == "string", "UI_setClass(): id must be a string")
+  assert(type(value) == "string", "UI_setClass(): value must be a string")
+  -- if GD.states.UI_class[id] == value then log("skip class "..id) return end
+  if env.trace then log("UI_setClass() "..tostring(id)..", "..tostring(value)) end
+  UI.setClass(id, value)
+  GD.states.UI_class[id] = value
+end
+
+--[[  Wrapper function for saving Global UI setClass for game restore. ]]
+function object_UI_setClass(guid, id, value)
+  assert(guid, "object_UI_setClass(): missing guid")
+  assert(type(id) == "string", "object_UI_setClass(): id must be a string")
+  assert(type(value) == "string", "object_UI_setClass(): value must be a string")
+  local obj = getObjectFromGUID(guid)
+  assert(obj, "object_UI_setAttribute() unable to locate object for guid "..tostring(guid))
+  -- if GD.states.object_UI_class[guid..":"..id] == value then log("skip class "..guid..":"..id) return end
+  if env.trace then log("UI_setClass() "..tostring(id)..", "..tostring(value)) end
+  obj.UI.setClass(id, value)
+  GD.states.object_UI_class[guid..":"..id] = value
+end
+
+--[[  Wrapper function for saving object UI attributes for game restore. ]]
+function object_UI_setAttribute(guid, id, field, value)
+  assert(guid, "object_UI_setAttribute(): missing guid")
+  assert(type(id) == "string", "object_UI_setAttribute(): id must be a string")
+  assert(type(field) == "string", "object_UI_setAttribute(): field must be a string")
+  assert(value ~= nil, "object_UI_setAttribute(): missing value")
+  local obj = getObjectFromGUID(guid)
+  assert(obj, "object_UI_setAttribute() unable to locate object for guid "..tostring(guid))
+  if GD.states.object_UI[guid..":"..id..":"..field] == value then return end
+  if env.trace then log("object_UI_setAttribute() "..tostring(guid)..", "..tostring(id)..", "..tostring(field)..", "..tostring(value)) end
+  obj.UI.setAttribute(id, field, value)
+  GD.states.object_UI[guid..":"..id..":"..field] = value
+end
+
 --[[ Set up the game environment.  TODO: just testing right now]]
-function setupGame()
+function setupGame(player, button, id)
   if env.trace then log("setupGame()") end
-  UI.setAttribute("start_pnl","active",false)
+  UI_setAttribute("start_pnl","active",false)
+  for i=1,4 do getObjectFromGUID(C.stacks[i]).shuffle() end
   -- setup players
   local seated = getSeatedPlayers()
-  if env.test_players then
-    seated = env.test_players
-  else
-    if #seated < 2 then
-      broadcastToAll("At least 2 players required to play this game")
-      return
-    end
+  if env.test_players then seated = env.test_players
+  elseif #seated < 2 then
+    broadcastToAll("At least 2 players required to play this game")
+    return
   end
   local n = math.random(#C.table_order)
-  log("random start number is "..tostring(n))
-  -- for i,player in ipairs(C.table_order) do
   for i=1,#C.table_order do
-    local player = C.table_order[n]
-    if contains(seated,player) then
-      table.insert(GD.player_order,player)
-      GD.players[player] = {}
+    local pcol = C.table_order[n]
+    if contains(seated,pcol) then
+      table.insert(GD.player_order,pcol)
+      GD.players[pcol] = {
+        grande = "",
+        caballeros = {},
+        active = false,
+        undo_button = false,
+        done_button = false,
+        show_disk = true,
+        disk_button = true,
+        selected_region = math.random(1,9),
+      }
+    else
+      --delete unused board and deck
+      getObjectFromGUID(C.decks[pcol]).destruct()
+      getObjectFromGUID(C.player_boards[pcol]).destruct()
     end
     if n == #C.table_order then n=1 else n=n+1 end
   end
   for g,e in pairs(GD.orderButtons) do
     e.players = simpleDeepCopy(GD.player_order)
     e.visibility = simpleDeepCopy(GD.player_order)
-    e.button_on = true
-    local button = getObjectFromGUID(g)
-    button.call("updateUI",e)
   end
-  for i=1,4 do
-    getObjectFromGUID(C.guids.stacks[i]).shuffle()
-  end
-  getObjectFromGUID(C.guids.board).UI.setAttribute("regions","active",true)
-  startPlacementPhase()
+  object_UI_setAttribute(C.board, "regions","active",true)
+  startLuaCoroutine(Global, "createPlayerCubes")
 end
 
+--[[ Create player cubes and place them.  Runs in a coro to yield between spawn calls. ]]
+function createPlayerCubes()
+  if env.trace then log("createPlayerCubes()") end
+  for _,pcol in ipairs(GD.player_order) do
+    local pdata = GD.players[pcol]
+    local board = getObjectFromGUID(C.player_boards[pcol])
+    --Grande
+    local sd = {
+      position = board.positionToWorld(Vector(C.start_pos_l[1])),
+      rotation = Vector(0,0,0),
+    }
+    sd.data = JSON.decode(C.grande_json)
+    sd.callback_function = function(o)
+      o.setName(pcol.." Grande")
+      o.setColorTint(Color[pcol])
+      o.setLock(true)
+      pdata.grande = o.getGUID()
+    end
+    spawnObjectData(sd)
+    coroutine.yield(0)
+    --Province Caballeros
+    sd.data = JSON.decode(C.caballero_json)
+    sd.callback_function = function(o)
+      o.setName(pcol.." Caballero")
+      o.setColorTint(Color[pcol])
+      o.setLock(true)
+      table.insert(pdata.caballeros, o.getGUID())
+    end
+    -- Province Caballeros
+    for i=1,21 do
+      sd.position = board.positionToWorld(Vector(C.prov_pos_l[i]))
+      spawnObjectData(sd)
+      coroutine.yield(0)
+    end
+    --Court Caballeros
+    for i=1,7 do
+      sd.position = board.positionToWorld(Vector(C.court_pos_l[i]))
+      spawnObjectData(sd)
+      coroutine.yield(0)
+    end
+    --Starting Caballeros
+    sd.position = board.positionToWorld(Vector(C.start_pos_l[2]))
+    spawnObjectData(sd)
+    coroutine.yield(0)
+    sd.position = board.positionToWorld(Vector(C.start_pos_l[3]))
+    spawnObjectData(sd)
+    coroutine.yield(0)
+  end
+  local c = 0
+  while c < 30 do c=c+1; coroutine.yield(0) end
+  getObjectFromGUID(C.grande_template).destruct()
+  getObjectFromGUID(C.caballero_template).destruct()
+  startPlacementPhase()
+  return 1
+end
+
+--[[ Setup for bidding on initial placement. ]]
 function startPlacementPhase()
   if env.trace then log("startPlacementPhase()") end
   GD.phase = "placement"
-
-  --TODO: show dialog
-  --TODO: set up player tracking
-  --TODO: handle in addCaballero and setGrande
-  --TODO: enable player done button
-  --TODO: start bid phase on last player
-
-  startBidPhase()
+  GD.player_waitlist = simpleDeepCopy(GD.player_order)
+  local str = "Initial Placement Selection"
+  str = str.."\nSecretly select starting region for"
+  str = str.."\nGrande and 2 starting Caballeros"
+  UI_setAttribute("wait_message_txt","text",str)
+  for i=1,5 do
+    if i <= #GD.player_order then
+      local pcol = GD.player_order[i]
+      UI_setAttribute("wait_p"..tostring(i).."_pnl","color",pcol)
+      UI_setAttribute("wait_p"..tostring(i).."_txt","text",pcol)
+      UI_setAttribute("wait_p"..tostring(i).."_row","active",true)
+      GD.players[pcol].active = true
+      GD.players[pcol].done_button = true
+      object_UI_setAttribute(C.player_boards[pcol],"secret_disk","active",true)
+      object_UI_setAttribute(C.player_boards[pcol],"button_pnl","active",true)
+      updatePlayerBoardUI(pcol)
+    else
+      UI_setAttribute("wait_p"..tostring(i).."_row","active",false)
+    end
+  end
+  UI_setAttribute("player_wait_pnl","height",tostring(140+(50*#GD.player_order)))
+  UI_setAttribute("player_wait_pnl","active",true)
 end
 
 --[[ Setup and begin the order bidding phase ]]
 function startBidPhase()
   if env.trace then log("startBidPhase()") end
-  broadcastToAll("Players select action order bids")
+  if GD.env.verbose then broadcastToAll("In current turn order players select action order bids") end
   GD.phase = "bidding"
+  GD.players_to_bid = simpleDeepCopy(GD.player_order)
+  local str = "Action turn order bidding"
+  str = str.."\nChoose an available bid number"
+  str = str.."\nX Caballeros will move to Court"
+  UI_setAttribute("wait_message_txt","text",str)
+  local first_player = GD.player_order[1]
+  GD.current_player = first_player
+  for i,pcol in ipairs(GD.player_order) do
+    local pdata = GD.players[pcol]
+    UI_setAttribute("wait_p"..tostring(i).."_pnl","color",pcol)
+    UI_setAttribute("wait_p"..tostring(i).."_txt","text",pcol)
+    if pcol == first_player then
+      UI_setAttribute("wait_p"..tostring(i).."_status_txt","text","Active")
+    else
+      UI_setAttribute("wait_p"..tostring(i).."_status_txt","text","")
+    end
+    pdata.active = pcol == first_player
+    pdata.undo_button = false
+    pdata.done_button = false
+    pdata.show_disk = false
+    object_UI_setAttribute(C.player_boards[pcol],"secret_disk","active",false)
+    updatePlayerBoardUI(pcol)
+  end
+  UI_setAttribute("player_wait_pnl","active",true)
   -- Move round marker
   GD.round = GD.round + 1
-  local marker = getObjectFromGUID(C.guids.round_marker)
+  local marker = getObjectFromGUID(C.round_marker)
   marker.setPosition(C.round_marker_positions[GD.round])
-  -- Set up the bid tracker
-  GD.players_to_bid = simpleDeepCopy(GD.player_order)
   -- Reveal Action Cards
   if #GD.action_cards > 0 then
-    for _,g in ipairs(GD.action_cards) do
-      getObjectFromGUID(g).destruct()
-    end
+    for _,g in ipairs(GD.action_cards) do getObjectFromGUID(g).destruct() end
   end
   GD.action_cards = {}
   for i=1,4 do
-    local stack = getObjectFromGUID(C.guids.stacks[i])
+    local stack = getObjectFromGUID(C.stacks[i])
     local pos = stack.getPosition()
     pos.y = pos.y + 3
     local card = stack.takeObject({position=pos,flip=true})
     table.insert(GD.action_cards, card.getGUID())
   end
-  local king_card = getObjectFromGUID(C.guids.stacks[5])
+  local king_card = getObjectFromGUID(C.stacks[5])
   if king_card.is_face_down then
     king_card.setLock(false)
     king_card.flip()
@@ -167,39 +387,57 @@ function startBidPhase()
   for g,d in pairs(GD.orderButtons) do
     d.button_on = true
     d.selected = false
-    d.visibility = simpleDeepCopy(d.players)
-    getObjectFromGUID(g).call("updateUI",d)
+    if not(d.selected) and indexOf(d.players,first_player) > 0 then
+      d.visibility = {first_player}
+    else
+      d.visibility = {}
+    end
+    updateOrderButtonUI(g,d)
   end
-
 end
 
 --[[ Setup and begin the action phase  ]]
 function startActionPhase()
   if env.trace then log("startActionPhase()") end
   GD.phase = "actions"
-  -- Reorder player turn order based on bids
+  -- set player order from highest to lowest bid
   local temp = {}
-  for g,d in pairs(GD.orderButtons) do
-    log("selected is "..tostring(d.selected))
-    if d.selected then
-      table.insert(temp,d.selected)
-    end
+  for i=13,1,-1 do
+    local d = GD.orderButtons[C.button_guids[i]]
+    if d.selected then table.insert(temp,d.selected) end
     d.button_on = false
   end
   assert(#temp == #GD.player_order, "FATAL: startActionPhase() uable to build new player order from selected bids")
   GD.player_order = temp
   GD.start_player = GD.player_order[1]
-  --now update the button display with reordered players
-  for g,d in pairs(GD.orderButtons) do
-    local temp = {}
-    for _,c in ipairs(GD.player_order) do if not(contains(d.used,c)) then table.insert(temp,c) end end
-    d.players = simpleDeepCopy(temp)
-    getObjectFromGUID(g).call("updateUI",d)
+  GD.current_player = GD.start_player
+  GD.players_to_play = simpleDeepCopy(GD.player_order)
+  local str = "Player Actions"
+  str = str.."\nChoose and play an available card"
+  str = str.."\nCaballeros move Court -> Region"
+  UI_setAttribute("wait_message_txt","text",str)
+  local first_player = GD.player_order[1]
+  GD.current_player = first_player
+  for i,pcol in ipairs(GD.player_order) do
+    local pdata = GD.players[pcol]
+    UI_setAttribute("wait_p"..tostring(i).."_pnl","color",pcol)
+    UI_setAttribute("wait_p"..tostring(i).."_txt","text",pcol)
+    if pcol == first_player then
+      UI_setAttribute("wait_p"..tostring(i).."_status_txt","text","Active")
+    else
+      UI_setAttribute("wait_p"..tostring(i).."_status_txt","text","")
+    end
+    pdata.active = pcol == first_player
+    pdata.undo_button = false
+    pdata.done_button = false
+    pdata.show_disk = false
+    object_UI_setAttribute(C.player_boards[pcol],"secret_disk","active",false)
+    updatePlayerBoardUI(pcol)
   end
-  log("Start Player is "..GD.start_player)
-  broadcastToAll("Players perform actions beginning with "..GD.start_player)
+  UI_setAttribute("player_wait_pnl","active",true)
+
   -- Activate buttons on action cards
-  --TODO activate buttons on cards
+  log("TODO activate buttons on cards")
 end
 
 --[[ A player clicked on an order button. Passthrough from the button object with parameters.
@@ -216,19 +454,15 @@ function orderButtonClick(params)
     button_data.selected = pcol
     table.remove(button_data.players,indexOf(button_data.players,pcol))
     table.insert(button_data.used,pcol)
-    for g,e in pairs(GD.orderButtons) do
-      table.remove(e.visibility,indexOf(e.visibility,pcol))
-      getObjectFromGUID(g).call("updateUI",e)
+    for g,d in pairs(GD.orderButtons) do
+      d.visibility = {}
+      updateOrderButtonUI(g,d)
     end
   end
-
-  --TODO: an undo for this
-  --TODO: a done button that triggers the check below
   table.remove(GD.players_to_bid,indexOf(GD.players_to_bid,pcol))
-  if #GD.players_to_bid == 0 then
-    startActionPhase()
-  end
-
+  GD.players[pcol].undo_button = true
+  GD.players[pcol].done_button = true
+  updatePlayerBoardUI(pcol)
 end
 
 --[[ Global handler for collisions with regions. Uses a lock to prevent multiple triggers by the same object.
@@ -256,7 +490,7 @@ function addCaballero(params)
       if g ~= region then r.caballeros[color][caballero] = nil end
     end
   end
-  updateUI()
+  updateBoardUI()()
 end
 
 --[[ Sets a Grande in a region when player drops it there.]]
@@ -269,7 +503,7 @@ function setGrande(params)
     else r.grandes[color] = false
     end
   end
-  updateUI()
+  updateBoardUI()()
 end
 
 --[[ Sets the King in a region when a player drops it there. ]]
@@ -280,40 +514,242 @@ function setKing(region_guid)
     else region.king = false
     end
   end
-  updateUI()
+  updateBoardUI()()
 end
 
 --[[ Adds a Caballero to the Castillo when a player drops it into the bag. ]]
 function addToCastillo(params)
-  if env.trace then log("setKing() "..tostring(params)) end
-  local color = params.color
-  local guid = params.guid
-  table.insert(GD.castillo[color],{guid})
-  getObjectFromGUID(C.guids.castillo).call("updateUI",GD.castillo)
+  if env.trace then log("addToCastillo()") end
+  local color = params.color; assert(color,"addToCastillo(): parameter color missing")
+  local guid = params.guid; assert(guid,"addToCastillo(): parameter guid missing")
+  local type = params.type; assert(type,"addToCastillo(): parameter type missing")
+  --TODO: add more state checks
+  if GD.game_started then
+    if type == "Caballero" then
+      table.insert(GD.castillo[color],{guid})
+      updateCastilloUI()
+      return true
+    elseif type == "Grande" then
+      --TODO: check for game state allowing Grande in Castillo.  Just return false for now.
+    else
+      log("ERROR: addToCastillo() unknown type")
+    end
+  end
+  if GD.env.verbose then broadcastToAll("Some objects cannot enter the Castillo") end
+  return false
 end
 
---[[ Update UIs with current state ]]
-function updateUI()
-  if env.trace then log("updateUI()") end
-  local board = getObjectFromGUID(C.guids.board)
-  for g,info in pairs(GD.regions) do
-    local r = info.scoring_order
-    if info.king then
-      board.UI.setClass("R"..tostring(r).."_H_pnl","Light Base")
-      board.UI.setClass("R"..tostring(r).."_H_txt","Title")
+--[[ Pass through from PlayerBoard.  User clicked on the secret disk. ]]
+function secretDisk(params)
+  if env.trace then log("secretDisk() "..tostring(params.index)) end
+  local index = GD.players[params.player_color].selected_region
+  index = index + 1
+  if index > 9 then index = 1 end
+  GD.players[params.player_color].selected_region = index
+  GD.players[params.player_color].done_button = true
+  updatePlayerBoardUI(params.player_color)
+end
+
+--[[ Passthrough from PlayerBoard. Player clicked "Done" button. ]]
+function playerDone(pcol)
+  if env.trace then log("playerDone() "..tostring(pcol)) end
+  if GD.phase == "placement" then
+    if indexOf(GD.player_waitlist,pcol) > 0 then
+      table.remove(GD.player_waitlist,indexOf(GD.player_waitlist,pcol))
+      UI_setAttribute("wait_p"..tostring(indexOf(GD.player_order,pcol)).."_status_txt","text","Set")
+      GD.players[pcol].disk_button = false
+      GD.players[pcol].undo_button = false
+      GD.players[pcol].done_button = false
+      GD.players[pcol].active = false
+      updatePlayerBoardUI(pcol)
+      if #GD.player_waitlist == 0 then
+        UI_setAttribute("player_wait_pnl","active",false)
+        log("--- TODO: place Grande and starting Caballeros in each player's region selection.")
+        startBidPhase()
+      end
+    end
+  elseif GD.phase == "bidding" then
+    GD.players[pcol].undo_button = false
+    GD.players[pcol].done_button = false
+    GD.players[pcol].active = false
+    updatePlayerBoardUI(pcol)
+    UI_setAttribute("wait_p"..tostring(indexOf(GD.player_order,pcol)).."_status_txt","text","Set")
+    if #GD.players_to_bid == 0 then
+      UI_setAttribute("player_wait_pnl","active",false)
+      startActionPhase()
     else
-      board.UI.setClass("R"..tostring(r).."_H_pnl","Clear")
-      board.UI.setClass("R"..tostring(r).."_H_txt","M LGray")
+      local n = indexOf(GD.player_order, pcol) + 1
+      if n > #GD.player_order then n = 1 end
+      GD.current_player = GD.player_order[n]
+      GD.players[GD.current_player].active = true
+      updatePlayerBoardUI(GD.current_player)
+      UI_setAttribute("wait_p"..tostring(n).."_status_txt","text","Active")
+      for g,d in pairs(GD.orderButtons) do
+        if not(d.selected) and indexOf(d.players,GD.current_player) > 0 then
+          d.visibility = {GD.current_player}
+        else
+          d.visibility = {}
+        end
+        updateOrderButtonUI(g,d)
+      end
     end
-    for color,present in pairs(info.grandes) do
-      board.UI.setAttribute(color.."_R"..tostring(r).."_G_pnl","active",present)
-    end
-    for color,list in pairs(info.caballeros) do
-      board.UI.setAttribute(color.."_R"..tostring(r).."_C_pnl","active", (sizeOf(list) > 0))
-      board.UI.setAttribute(color.."_R"..tostring(r).."_C_txt","text", tostring(sizeOf(list)))
+  elseif GD.phase == "actions" then
+    GD.players[pcol].undo_button = false
+    GD.players[pcol].done_button = false
+    GD.players[pcol].active = false
+    updatePlayerBoardUI(pcol)
+    UI_setAttribute("wait_p"..tostring(indexOf(GD.player_order,pcol)).."_status_txt","text","Done")
+    table.remove(GD.players_to_play,indexOf(GD.players_to_play,pcol))
+    if #GD.players_to_play == 0 then
+      UI_setAttribute("player_wait_pnl","active",false)
+      --reverse player order and start next bidding phase
+      local temp = {}
+      for i=#GD.player_order,1,-1 do table.insert(temp,GD.player_order[i]) end
+      GD.player_order = temp
+      startBidPhase()
+    else
+      local n = indexOf(GD.player_order, pcol) + 1
+      if n > #GD.player_order then n = 1 end
+      GD.current_player = GD.player_order[n]
+      GD.players[GD.current_player].active = true
+      updatePlayerBoardUI(GD.current_player)
+      UI_setAttribute("wait_p"..tostring(n).."_status_txt","text","Active")
     end
   end
 end
 
+function playerUndo(pcol)
+  if env.trace then log("playerUndo() "..tostring(pcol)) end
+end
+
+--[[ Update UIs with current state ]]
+function updateBoardUI()
+  if env.trace then log("updateBoardUI()") end
+  local board = C.board
+  for g,info in pairs(GD.regions) do
+    local r = info.scoring_order
+    if info.king then
+      object_UI_setClass(board, "R"..tostring(r).."_H_pnl","Light Base")
+      object_UI_setClass(board, "R"..tostring(r).."_H_txt","Title")
+    else
+      object_UI_setClass(board, "R"..tostring(r).."_H_pnl","Clear")
+      object_UI_setClass(board, "R"..tostring(r).."_H_txt","M LGray")
+    end
+    for color,present in pairs(info.grandes) do
+      object_UI_setAttribute(board, color.."_R"..tostring(r).."_G_pnl","active",present)
+    end
+    for color,list in pairs(info.caballeros) do
+      object_UI_setAttribute(board, color.."_R"..tostring(r).."_C_pnl","active", (sizeOf(list) > 0))
+      object_UI_setAttribute(board, color.."_R"..tostring(r).."_C_txt","text", tostring(sizeOf(list)))
+    end
+  end
+end
+
+--[[ Update the player board UI for a given player with current data. ]]
+function updatePlayerBoardUI(pcol)
+  if env.trace then log("updatePlayerBoardUI() "..pcol) end
+  local pdata = GD.players[pcol]
+  local board = C.player_boards[pcol]
+  object_UI_setAttribute(board, "active_pnl","active",pdata.active)
+  object_UI_setAttribute(board, "secret_disk","active",pdata.show_disk)
+  object_UI_setAttribute(board, "disk","rotation",C.disk_rotations[pdata.selected_region])
+  object_UI_setAttribute(board, "undo","active",pdata.undo_button)
+  object_UI_setClass(board, "undo","")
+  object_UI_setAttribute(board, "done","active",pdata.done_button)
+  object_UI_setClass(board, "done","")
+  if pdata.disk_button then
+    object_UI_setClass(board, "pointer","diskButton")
+  else
+    object_UI_setClass(board, "pointer","")
+  end
+end
+
+--[[ Update the UI for an Order Bidding button with current state. --]]
+function updateOrderButtonUI(guid, button_data)
+  if env.trace then log("updateOrderButtonUI() Button "..tostring(button_data.number)) end
+  -- log(button_data)
+  if button_data.button_on then
+    local str="Pink"
+    for _,c in ipairs(button_data.visibility) do str = str .."|"..c end
+    object_UI_setAttribute(guid,"button","visibility",str)
+  end
+  object_UI_setAttribute(guid,"button","active",button_data.button_on)
+  if button_data.selected then
+    object_UI_setAttribute(guid,"player_pnl","color",button_data.selected)
+    object_UI_setAttribute(guid,"player_txt","text",button_data.selected)
+    object_UI_setAttribute(guid,"selected","active",true)
+    object_UI_setAttribute(guid,"button","active",false)
+    -- object_UI_setAttribute(guid,"used","active",false)
+  else
+    object_UI_setAttribute(guid,"selected","active",false)
+    -- object_UI_setAttribute(guid,"used","active",true)
+  end
+  local str="Pink"
+  for _,c in ipairs(button_data.used) do str = str .."|"..c end
+  object_UI_setAttribute(guid,"used","visibility",str)
+  object_UI_setAttribute(guid,"used","active",#button_data.used > 0)
+  if #button_data.players > 0 then
+    object_UI_setAttribute(guid,"info_row_2","active",#button_data.players > 3)
+    for i,player in ipairs(button_data.players) do
+      local initial = string.sub(player, 1, 1)
+      object_UI_setAttribute(guid,"info_"..tostring(i).."_pnl","color",player)
+      object_UI_setAttribute(guid,"info_"..tostring(i).."_txt","text",initial)
+      object_UI_setAttribute(guid,"info_"..tostring(i).."_pnl","active",true)
+    end
+    for i=#button_data.players+1,5 do
+      object_UI_setAttribute(guid,"info_"..tostring(i).."_pnl","active",false)
+    end
+    object_UI_setAttribute(guid,"info","active",true)
+  else
+    object_UI_setAttribute(guid,"info","active",false)
+  end
+end
+
+--[[ Called from global with current Castillo data to update the UI.  ]]  --TODO: move to Global
+function updateCastilloUI()
+  if env.trace then log("updateCastilloUI()") end
+  for color,list in pairs(GD.castillo) do
+    if #list > 0 then
+      object_UI_setAttribute(C.castillo,color.."_txt","text",tostring(#list))
+      object_UI_setAttribute(C.castillo,color.."_pnl","active",true)
+    else
+      object_UI_setAttribute(C.castillo,color.."_pnl","active",false)
+    end
+  end
+end
+
+
+--[[ Force reload of all UI elements when somethign isn't showing.
+    HACK: Linked to numpad 1 hotkey for the game.
+--]]
+function reloadUI(player_color)
+  if env.trace then log("reloadUI() "..tostring(player_color)) end
+  local xml = UI.getXml()
+  if xml ~= nil and #xml > 0 then UI.setXml(xml)
+  else log("Global:reloadUI(): WARN: no global XML found!") end
+  local n = 0
+  for _,o in ipairs(getAllObjects()) do
+    if not(o.hasTag("Caballero")) and not(o.hasTag("Grande")) then
+      local xml = o.UI.getXml()
+      if xml ~= nil and #xml > 0 then o.UI.setXml(xml); n=n+1 end
+    end
+  end
+  broadcastToAll("All UIs reloaded.")
+  log("UIs reloaded for Global and "..tostring(n).." Objects")
+end
+
 #include ~/github/tts-el_grande/Constants.ttslua
 #include ~/github/tts-lib/Utils.ttslua
+
+-- function getLocalPos()
+--   local board = getObjectFromGUID(C.player_boards["Brown"])
+--   local n = 0
+--   local s = ""
+--   for _,o in ipairs(Player["Brown"].getSelectedObjects()) do
+--     n=n+1
+--     local l = board.positionToLocal(o.getPosition())
+--     s=s.."{"..string.format("%.4f", l.x)..","..string.format("%.4f", l.y)..","..string.format("%.4f", l.x).."},"
+--     if n==5 then s=s.."\n"; n=0 end
+--   end
+--   Notes.setNotes(s)
+-- end

@@ -1,0 +1,35 @@
+<XmlLayout xmlns="http://www.w3schools.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:noNamespaceSchemaLocation="../../../Configuration/XmlLayout.xsd">
+
+<Include src="XML_defaults.xml"/>
+
+<Defaults>
+  <Panel raycastTarget="false" />
+  <Panel class="Main" rotation="0 0 180" scale="0.5 0.5" />
+  <image class="diskButton" onClick="rotateDisk" />
+</Defaults>
+
+
+<Panel id="button_pnl" active="false" class="Main Light Base" width="200" height="190" position="-102 -55 -15" padding="10">
+  <Panel class="Dark Viewport">
+    <TableLayout>
+      <Row preferredHeight="40">
+        <Cell><Panel id="active_pnl" active="false" class="Title" color="Pink"><Text id="active_txt" fontSize="28" text="Active"/></Panel></Cell>
+      </Row>
+      <Row preferredHeight="65">
+        <Cell padding="20 20 15 10"><Button id="undo" active="false" onClick="playerButton" text="Undo"/></Cell>
+      </Row>
+      <Row preferredHeight="65">
+        <Cell padding="20 20 10 15"><Button id="done" active="false" onClick="playerButton" text="Done"/></Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+
+<!-- Secret selection panel -->
+<Panel id="secret_disk" active="false" width="200" height="200" position="0 -50 -100" scale="0.5 0.5">
+  <Panel id="disk" rotation="0 0 0"><Image image="Secret_Disk"/></Panel>
+  <Image id="pointer" image="Pointer" scale="0.5 0.5" class="diskButton"/>
+</Panel>
+
+</XmlLayout>
