@@ -1,5 +1,7 @@
 
 
+--TODO: maybe don't need any script?
+
 function onLoad(saved_state)
   log("Main board loaded")
 end

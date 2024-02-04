@@ -7,7 +7,7 @@
   <Panel raycastTarget="false" />
   <Panel class="Main" rotation="0 0 180" position="0 0 -20" scale="2 2" />
   <Text class="XXL" fontSize="40" />
-  <Button class="OrderButton" hoverClass="orderHover" pressClass="" selectClass="" color="rgba(0,0,0,0)" onClick="buttonClick" width="160" height="80"/>
+  <Button class="OrderButton" hoverClass="orderHover" pressClass="" selectClass="" color="rgba(0,0,0,0)" onClick="Global/bidButton" width="160" height="80"/>
   <Button class="OrderHover" fontSize="40" text="Select" textColor="rgb(0.9,0.9,0)" textShadow="rgba(0,0,0,1)"/>
 </Defaults>
 
@@ -28,7 +28,7 @@
 
 <!-- Button panel -->
 <Panel id="button" active="false" class="Main Base Clear" height="100" width="160" position="0 -50 -10" >
-  <Button class="OrderButton"/>
+  <Button id="btn_template" class="OrderButton"/>
 </Panel>
 
 <!-- Info panel -->

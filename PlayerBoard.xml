@@ -6,7 +6,7 @@
 <Defaults>
   <Panel raycastTarget="false" />
   <Panel class="Main" rotation="0 0 180" scale="0.5 0.5" />
-  <image class="diskButton" onClick="rotateDisk" />
+  <image class="diskButton" onClick="Global/rotateDisk" />
 </Defaults>
 
 
@@ -16,11 +16,14 @@
       <Row preferredHeight="40">
         <Cell><Panel id="active_pnl" active="false" class="Title" color="Pink"><Text id="active_txt" fontSize="28" text="Active"/></Panel></Cell>
       </Row>
-      <Row preferredHeight="65">
-        <Cell padding="20 20 15 10"><Button id="undo" active="false" onClick="playerButton" text="Undo"/></Cell>
+      <Row id="undo_row" preferredHeight="65">
+        <Cell padding="20 20 15 10"><Button id="undo" active="false" onClick="Global/playerButton" text="Undo"/></Cell>
       </Row>
-      <Row preferredHeight="65">
-        <Cell padding="20 20 10 15"><Button id="done" active="false" onClick="playerButton" text="Done"/></Cell>
+      <Row id="skip_row" preferredHeight="65" active="false">
+        <Cell padding="20 20 10 15"><Button id="skip" active="false" onClick="Global/playerButton" text="Skip"/></Cell>
+      </Row>
+      <Row id="done_row" preferredHeight="65">
+        <Cell padding="20 20 10 15"><Button id="done" active="false" onClick="Global/playerButton" text="Done"/></Cell>
       </Row>
     </TableLayout>
   </Panel>

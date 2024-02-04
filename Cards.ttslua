@@ -1,0 +1,8 @@
+--Card metadata
+cards = {
+  ["a57d8a"] = {
+    name = "King's card",
+    caballeros = 5,
+    specials = {"move_king"},
+  },
+}

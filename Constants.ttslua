@@ -5,13 +5,12 @@ C.table_order = {"Yellow","Purple","Green","Red","Brown"}
 C.board = "dcccbf"
 C.castillo = "53146e"
 C.round_marker = "63df24"
-C.stacks = {"121e35","c39846","b6a2b0","32a13a","c275fa",}
+C.stacks = {"e4530b","d81048","1baff8","f8d8b2","a57d8a",}
 C.player_boards = {Brown="01cf4f",Red="40aa3a",Green="5688f0",Purple="7289a1",Yellow="edd3ca",}
 C.decks = {Brown="cf4c2e",Red="9c36f4",Green="634e7c",Purple="7e16a2",Yellow="118ba3",}
-C.grande_template = "a43cfd"
-C.caballero_template = "222ecb"
+C.trash = "595833"
 
-C.king_card_position = {-39.87, 0.97, 21.43}
+C.king_card_position = {-39.95, 0.97, 21.37}
 
 C.round_marker_positions = {
   {-27.37, 1.60, 10.82},
@@ -29,7 +28,6 @@ C.grande_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffus
 C.caballero_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"222ecb","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Caballero","Snap":true,"Sticky":true,"Tags":["Caballero"],"Tooltip":true,"Transform":{"posX":-40.3260803222656,"posY":1.21000027656555,"posZ":-21.2416534423828,"rotX":-5.58641488623834E-07,"rotY":-1.5730960512883E-05,"rotZ":-3.4076799693139E-07,"scaleX":0.500000417232513,"scaleY":0.500000417232513,"scaleZ":0.500000417232513},"Value":0,"XmlUI":""}'
 
 C.start_pos_l = {{0.939357, 0.529676, -0.695793},{0.995675, 0.349792, -0.494914},{0.883034, 0.349735, -0.494917},} --Grande and 2 Caballeros, for initial placement
-
 C.prov_pos_l = {
   {1.138334, 0.350136, 0.12461},{1.025694, 0.350078, 0.124606},{0.913054, 0.350021, 0.124603},{0.800415, 0.349963, 0.1246},{0.687775, 0.349906, 0.124597},
   {1.138334, 0.350136, 0.237243},{1.025694, 0.350078, 0.237243},{0.913054, 0.350021, 0.237243},{0.800415, 0.349963, 0.237243},{0.687775, 0.349906, 0.237243},
@@ -48,29 +46,38 @@ C.court_pos_l = {
 }
 
 C.disk_rotations = {
-  "0 0 180",  --Region 1: Galicia
-  "0 0 140",  --Region 2: Basque Country
-  "0 0 100",   --Region 3: Old Castille
-  "0 0 60",  --Region 4: Aragon
-  "0 0 20", --Region 5: Catalonia
+  "0 0 180",    --Region 1: Galicia
+  "0 0 140",    --Region 2: Basque Country
+  "0 0 100",    --Region 3: Old Castille
+  "0 0 60",     --Region 4: Aragon
+  "0 0 20",     --Region 5: Catalonia
   "0 0 -20",    --Region 6: New Castille
-  "0 0 -60", --Region 7: Valencia
-  "0 0 -100",  --Region 8: Seville
-  "0 0 -140",  --Region 9: Granada
+  "0 0 -60",    --Region 7: Valencia
+  "0 0 -100",   --Region 8: Seville
+  "0 0 -140",   --Region 9: Granada
 }
 
-C.region_GUIDs = { "7593ad","9831c2","034b56","e63e4a","ff0a84","719679","5c52ab","d53798","c74830", }
+C.region_guids = { "7593ad","9831c2","034b56","e63e4a","ff0a84","719679","5c52ab","d53798","c74830", }
 
 C.region_info = {
-  ["7593ad"] = { name = "Galicia", scoring_order = 1, scoring = {4,2,0}, },
-  ["9831c2"] = { name = "Basque Country", scoring_order = 2, scoring = {5,3,1}, },
-  ["034b56"] = { name = "Old Castille", scoring_order = 3, scoring = {6,4,2}, },
-  ["e63e4a"] = { name = "Aragon", scoring_order = 4, scoring = {5,4,1}, },
-  ["ff0a84"] = { name = "Catalonia", scoring_order = 5, scoring = {4,2,1}, },
-  ["719679"] = { name = "New Castille", scoring_order = 6, scoring = {7,4,2}, },
-  ["5c52ab"] = { name = "Valencia", scoring_order = 7, scoring = {5,3,2}, },
-  ["d53798"] = { name = "Seville", scoring_order = 8, scoring = {4,3,1}, },
-  ["c74830"] = { name = "Granada", scoring_order = 9, scoring = {6,3,1}, },
+  ["7593ad"] = { name = "Galicia", scoring_order = 1, scoring = {4,2,0},
+    start_loc={Brown={-15.28, 1.66, 15.31},Red={-13.58, 1.66, 15.28},Green={-11.71, 1.66, 15.32},Purple={-11.71, 1.66, 15.32},Yellow={-8.00, 1.66, 15.28},},},
+  ["9831c2"] = { name = "Basque Country", scoring_order = 2, scoring = {5,3,1},
+    start_loc={Brown={-1.74, 1.66, 15.62},Red={-0.03, 1.66, 15.59},Green={1.84, 1.66, 15.63},Purple={3.70, 1.66, 15.57},Yellow={5.55, 1.66, 15.58},},},
+  ["034b56"] = { name = "Old Castille", scoring_order = 3, scoring = {6,4,2},
+    start_loc={Brown={-5.12, 1.66, 7.38},Red={-3.41, 1.66, 7.34},Green={-1.54, 1.66, 7.39},Purple={0.32, 1.66, 7.33},Yellow={2.16, 1.66, 7.34},},},
+  ["e63e4a"] = { name = "Aragon", scoring_order = 4, scoring = {5,4,1},
+    start_loc={Brown={6.96, 1.66, 11.13},Red={8.66, 1.66, 11.09},Green={10.53, 1.66, 11.13},Purple={12.40, 1.66, 11.08},Yellow={14.24, 1.66, 11.09},},},
+  ["ff0a84"] = { name = "Catalonia", scoring_order = 5, scoring = {4,2,1},
+    start_loc={Brown={19.21, 1.66, 10.77},Red={20.91, 1.66, 10.73},Green={22.78, 1.66, 10.77},Purple={24.65, 1.66, 10.72},Yellow={26.49, 1.66, 10.73},},},
+  ["719679"] = { name = "New Castille", scoring_order = 6, scoring = {7,4,2},
+    start_loc={Brown={-3.39, 1.66, -1.90},Red={-1.68, 1.66, -1.93},Green={0.19, 1.66, -1.89},Purple={2.05, 1.66, -1.94},Yellow={3.90, 1.66, -1.93},},},
+  ["5c52ab"] = { name = "Valencia", scoring_order = 7, scoring = {5,3,2},
+    start_loc={Brown={12.77, 1.66, -4.93},Red={11.86, 1.66, -2.38},Green={13.73, 1.66, -2.34},Purple={15.59, 1.66, -2.39},Yellow={15.59, 1.66, -2.39},},},
+  ["d53798"] = { name = "Seville", scoring_order = 8, scoring = {4,3,1},
+    start_loc={Brown={-6.53, 1.66, -12.36},Red={-7.44, 1.66, -9.82},Green={-5.58, 1.66, -9.78},Purple={-3.71, 1.66, -9.83},Yellow={-4.62, 1.66, -12.34},},},
+  ["c74830"] = { name = "Granada", scoring_order = 9, scoring = {6,3,1},
+    start_loc={Brown={1.28, 1.66, -10.16},Red={2.98, 1.66, -10.20},Green={4.85, 1.66, -10.16},Purple={6.72, 1.66, -10.21},Yellow={8.56, 1.66, -10.20},},},
 }
 C.button_guids = {"78f122","a21eee","544a08","b42371","717455","53f27e","318d09","d19b3b","9d3976","f098cb","13c06c","176543","a30dbe",}
 C.order_buttons = {

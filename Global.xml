@@ -3,25 +3,49 @@
 
 <Include src="XML_defaults.xml"/>
 
+<Defaults>
+  <!-- <Toggle textColor="rgb(0.8,0.8,0.8)" /> -->
+  <Toggle tooltipTextColor="rgb(0.8,0.8,0)" tooltipBorderColor="rgb(0.7,0.7,0)" tooltipBackgroundImage="Sprites/Layout/Outline"
+    tooltipBackgroundColor="rgba(0,0,0,1)" tooltipPosition="Above" tooltipOffset="-15" />
+  <Toggle textColor="#eab676" colors="#803e13|rgb(0.8,0.4,0)|rgb(0.8,0.4,0)|Gray" />
+</Defaults>
+
 <!-- Start Panel -->
-<Panel id="start_pnl" active="false" class="Draggable Light Base" height="200" width="320" padding="10">
+<Panel id="start_pnl" active="false" class="Draggable Light Base" height="400" width="380" padding="10">
   <Panel class="Dark Viewport">
     <TableLayout>
       <Row preferredHeight="60">
         <Cell><Panel class="Light Title"><Text id="start_title" class="L Yellow" text="After all players seated"/></Panel></Cell>
       </Row>
       <Row preferredHeight="100">
-        <Cell padding="60 60 25 25"><Button onClick="setupGame" text="Start Game"/></Cell>
+        <Cell padding="90 90 25 25"><Button onClick="setupGame" text="Start Game"/></Cell>
       </Row>
-      <Row preferredHeight="20">
-        <Cell><Text id="game_version" class="Tiny Gray" alignment="UpperCenter" text="Version X.X.X dev branch"/></Cell>
+      <Row preferredHeight="180">
+        <Cell padding="60 0 0 0">
+          <VerticalLayout>
+            <Toggle id="verbose" onValueChanged="startOptions" isOn="true" text="  Verbose game messages"
+              tooltip="Be verbose with notifications" />
+            <Toggle id="short" onValueChanged="startOptions" isOn="false" text="  Short game"
+              tooltip="Skip rounds 1, 4, and 7 for 6 rounds vs 9"/>
+            <Text color="rgb(0.8,0.4,0)" fontSize="16" alignment="LowerCenter" text="Expansions:               "/>
+            <Toggle id="intrique_king" onValueChanged="startOptions"  isOn="false" text="  Intrigue and the King expansion"
+              tooltip="Not yet implemented" />
+            <Toggle id="grandissimo" onValueChanged="startOptions"  isOn="false" text="  Grandissimo expansion"
+              tooltip="Not yet implemented" />
+            <Toggle id="inquisitor_colonies" onValueChanged="startOptions"  isOn="false" text="  Inquisitor and Colonies expansion"
+              tooltip="Not yet implemented" />
+          </VerticalLayout>
+        </Cell>
+      </Row>
+      <Row preferredHeight="40">
+        <Cell><Text id="game_version" class="Tiny Gray" text="Version X.X.X dev branch"/></Cell>
       </Row>
     </TableLayout>
   </Panel>
 </Panel>
 
 <!-- Player wait panel -->
-<Panel id="player_wait_pnl" active="false" class="Draggable Light Base" width="280" height="380" padding="10" rectAlignment="UpperLeft">
+<Panel id="player_wait_pnl" active="false" class="Draggable Light Base" width="280" height="380" padding="10" rectAlignment="UpperLeft" offsetXY="40 -40">
   <Panel class="Dark Viewport">
     <TableLayout columnWidths="140 0">
       <Row preferredHeight="100">

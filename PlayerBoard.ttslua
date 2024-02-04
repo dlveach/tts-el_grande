@@ -1,27 +1,23 @@
 
 env = {}
 
+-- color: defined in tts object script  TODO: mvoe to C indexed by guid and get from global?
+
 function onLoad(saved_data)
   local tmp = Global.getTable("env")
   if tmp == nil then return end --supress errors when Global fails to load
   env = simpleDeepCopy(tmp)
-  self.UI.setAttribute("secret_disk","visibility",color)
+  local xml = self.UI.getXmlTable()
+  local disk = getXmlElement("secret_disk",xml)
+  disk.attributes.visibility = color
+  local undo = getXmlElement("undo",xml)
+  undo.attributes.id = color.."_undo"
+  local done = getXmlElement("done",xml)
+  done.attributes.id = color.."_done"
+  local pointer = getXmlElement("pointer",xml)
+  pointer.attributes.id = color.."_pointer"
+  self.UI.setXmlTable(xml)
   if env.trace then log("Player board "..color.." loaded") end
-end
-
-function rotateDisk(player, button, id)
-  if player.color ~= color then return end
-  if env.trace then log("Playerboard "..color.." rotateDisk(), "..player.color) end
-  Global.call("secretDisk",{guid=self.guid,player_color=color})
-end
-
-function playerButton(player, button, id)
-  if env.trace then log("Playerboard "..color.." playerDone() "..player.color) end
-  if player.color ~= color then return end
-  if id == "done" then Global.call("playerDone",player.color)
-  elseif id == "undo" then Global.call("playerUndo",player.color)
-  else log("Playerboard "..color.." ERROR: unknown id")
-  end
 end
 
 #include ~/github/tts-lib/Utils.ttslua

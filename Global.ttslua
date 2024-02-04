@@ -1,20 +1,31 @@
---board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
--- retain cube and number on buttons when used
--- staging area for return cubes to province/court
--- highlight (decal?) cubes that have been moved during the action, before player hits done
+--[[
 
+--TODO: document, credits, etc.
+--board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
+
+  -TODO: track cube snapback locations for undo etc.
+  -TODO: staging area for return cubes to province/court
+  -TODO: highlight (decal?) cubes that have been moved during an action, before player hits done
+
+]]
 env = {}
 env.version = "0.1 experimental"
-env.debug = true
+env.debug = false
 env.trace = true
+env.trace2 = false
 -- env.test_players = {"Brown","Red","Green","Purple","Yellow"}
 env.test_players = {"Red","Green","Purple"}
-env.in_dev = false
+env.in_dev = false --leave some objects interactable for dev purposes.
 env.use_saved_data = false
-env.save_stats = false
--- defaults for game environment settings
-env.game_verbose = truez
-env.game_use_cards = false --TODO: future option
+env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
+env.save_stats = false --log save data size every onSave() call.  Noisy.
+env.lock_player_cubes = false --false for testing
+--[[  defaults for game environment settings ]]
+env.game_verbose = true
+env.short_game = false
+env.intrigue_king_exp = false --TODO: future option
+env.grandissimo_exp = false --TODO: future option
+env.inquisitor_colonies_exp = false --TODO: future expansion
 
 GD = {}
 
@@ -34,7 +45,11 @@ function onLoad(saved_data)
     UI.setAttribute("start_title","text","After all players seated:\n*** Test Players Enabled ***")
     log("WARN: Test players enabled")
   end
-
+  if not(env.in_dev) then
+    local o = getObjectFromGUID(C.trash)
+    o.interactable = false
+    o.setInvisibleTo(Player.getAvailableColors())
+  end
   if not(env.use_saved_data) then saved_data = "" end
   if saved_data ~= "" then
     if env.trace then log("Global:onLoad(): loading from saved data") end
@@ -51,7 +66,10 @@ function onLoad(saved_data)
     --persistent environment vars
     GD.env = {}
     GD.env.verbose = env.game_verbose
-    GD.env.use_cards = env.game_use_cards
+    GD.env.short_game = env.short_game
+    GD.env.intrigue_king_exp = env.intrigue_king_exp
+    GD.env.grandissimo_exp = env.grandissimo_exp
+    GD.env.inquisitor_colonies_exp = env.inquisitor_colonies_exp
     --player data
     GD.players = {}
     GD.player_order = {}
@@ -158,14 +176,15 @@ function restoreGame()
   end
 end
 
---TODO: TESTING ignoring dupes in UI wrapper calls. Cut down UI overhead.
-
+--[[ TODO: TESTING ignoring dupes in UI wrapper calls. Cut down UI overhead.
+  Need to do some stats testing to see if it is dropping any updates needed.
+  NOTE: for setAttribute only, not for setClass. ]]
 --[[  Wrapper function for saving Global UI attributes for game restore. ]]
 function UI_setAttribute(id, field, value)
   assert(type(id) == "string", "UI_setAttribute(): id must be a string")
   assert(type(field) == "string", "UI_setAttribute(): field must be a string")
-  if GD.states.UI[id..":"..field] == value then return end
-  if env.trace then log("UI_setAttribute(): "..tostring(id)..", "..tostring(field)..", "..tostring(value)) end
+  if env.ui_dedupe and GD.states.UI[id..":"..field] == value then return end
+  if env.trace2 then log("UI_setAttribute(): "..tostring(id)..", "..tostring(field)..", "..tostring(value)) end
   UI.setAttribute(id, field, value)
   GD.states.UI[id..":"..field] = value
 end
@@ -175,7 +194,7 @@ function UI_setClass(id, value)
   assert(type(id) == "string", "UI_setClass(): id must be a string")
   assert(type(value) == "string", "UI_setClass(): value must be a string")
   -- if GD.states.UI_class[id] == value then log("skip class "..id) return end
-  if env.trace then log("UI_setClass() "..tostring(id)..", "..tostring(value)) end
+  if env.trace2 then log("UI_setClass() "..tostring(id)..", "..tostring(value)) end
   UI.setClass(id, value)
   GD.states.UI_class[id] = value
 end
@@ -188,7 +207,7 @@ function object_UI_setClass(guid, id, value)
   local obj = getObjectFromGUID(guid)
   assert(obj, "object_UI_setAttribute() unable to locate object for guid "..tostring(guid))
   -- if GD.states.object_UI_class[guid..":"..id] == value then log("skip class "..guid..":"..id) return end
-  if env.trace then log("UI_setClass() "..tostring(id)..", "..tostring(value)) end
+  if env.trace2 then log("UI_setClass() "..tostring(id)..", "..tostring(value)) end
   obj.UI.setClass(id, value)
   GD.states.object_UI_class[guid..":"..id] = value
 end
@@ -201,17 +220,43 @@ function object_UI_setAttribute(guid, id, field, value)
   assert(value ~= nil, "object_UI_setAttribute(): missing value")
   local obj = getObjectFromGUID(guid)
   assert(obj, "object_UI_setAttribute() unable to locate object for guid "..tostring(guid))
-  if GD.states.object_UI[guid..":"..id..":"..field] == value then return end
-  if env.trace then log("object_UI_setAttribute() "..tostring(guid)..", "..tostring(id)..", "..tostring(field)..", "..tostring(value)) end
+  if env.ui_dedupe and GD.states.object_UI[guid..":"..id..":"..field] == value then return end
+  if env.trace2 then log("object_UI_setAttribute() "..tostring(guid)..", "..tostring(id)..", "..tostring(field)..", "..tostring(value)) end
   obj.UI.setAttribute(id, field, value)
   GD.states.object_UI[guid..":"..id..":"..field] = value
 end
 
---[[ Set up the game environment.  TODO: just testing right now]]
+--[[ ******************************
+Game start options handler
+*********************************]]
+function startOptions(player, value, id)
+  if env.trace then log("startOptions() player: "..tostring(player.color)..", id: "..tostring(id)) end
+  local setting = (value == 'True')
+  UI.setAttribute(id, "isOn", setting)
+  if id == "verbose" then
+    GD.env.verbose = setting
+  elseif id == "short" then
+    GD.env.short_game = setting
+  elseif id == "intrique_king" or id == "grandissimo" or id == "inquisitor_colonies" then
+    broadcastToColor("Not yet implemented", player.color)
+    setting = false
+  else
+    log("ERROR: startOptions(): unknown id: "..tostring(id))
+  end
+  UI.setAttribute(id,"isOn",setting)
+end
+
+--[[ Set up the game environment.
+--]]
 function setupGame(player, button, id)
-  if env.trace then log("setupGame()") end
+  if env.trace then log("setupGame() "..player.color..", "..tostring(id)) end
   UI_setAttribute("start_pnl","active",false)
-  for i=1,4 do getObjectFromGUID(C.stacks[i]).shuffle() end
+  for i=1,4 do
+    local g = C.stacks[i]
+    local stack = getObjectFromGUID(g)
+    assert(stack, "setupGame() missing card stack for guid "..tostring(g))
+    stack.shuffle()
+  end
   -- setup players
   local seated = getSeatedPlayers()
   if env.test_players then seated = env.test_players
@@ -226,7 +271,10 @@ function setupGame(player, button, id)
       table.insert(GD.player_order,pcol)
       GD.players[pcol] = {
         grande = "",
+        start_caballeros = {},
         caballeros = {},
+        provinces = {},
+        court = {},
         active = false,
         undo_button = false,
         done_button = false,
@@ -234,8 +282,9 @@ function setupGame(player, button, id)
         disk_button = true,
         selected_region = math.random(1,9),
       }
+      if not(GD.env.intrigue_king_exp) then getObjectFromGUID(C.decks[pcol]).destruct() end
     else
-      --delete unused board and deck
+      --delete all unused items for non-player colors
       getObjectFromGUID(C.decks[pcol]).destruct()
       getObjectFromGUID(C.player_boards[pcol]).destruct()
     end
@@ -249,7 +298,10 @@ function setupGame(player, button, id)
   startLuaCoroutine(Global, "createPlayerCubes")
 end
 
---[[ Create player cubes and place them.  Runs in a coro to yield between spawn calls. ]]
+--[[ Create player cubes and place them.
+  Runs in a coro to yield between spawn calls.  Not entirely necessary
+  but I like the visual effect it creates. :)
+--]]
 function createPlayerCubes()
   if env.trace then log("createPlayerCubes()") end
   for _,pcol in ipairs(GD.player_order) do
@@ -264,7 +316,7 @@ function createPlayerCubes()
     sd.callback_function = function(o)
       o.setName(pcol.." Grande")
       o.setColorTint(Color[pcol])
-      o.setLock(true)
+      o.setLock(env.lock_player_cubes)
       pdata.grande = o.getGUID()
     end
     spawnObjectData(sd)
@@ -274,8 +326,9 @@ function createPlayerCubes()
     sd.callback_function = function(o)
       o.setName(pcol.." Caballero")
       o.setColorTint(Color[pcol])
-      o.setLock(true)
+      o.setLock(env.lock_player_cubes)
       table.insert(pdata.caballeros, o.getGUID())
+      table.insert(pdata.provinces, o.getGUID())
     end
     -- Province Caballeros
     for i=1,21 do
@@ -284,12 +337,26 @@ function createPlayerCubes()
       coroutine.yield(0)
     end
     --Court Caballeros
+    sd.callback_function = function(o)
+      o.setName(pcol.." Caballero")
+      o.setColorTint(Color[pcol])
+      o.setLock(env.lock_player_cubes)
+      table.insert(pdata.caballeros, o.getGUID())
+      table.insert(pdata.court, o.getGUID())
+    end
     for i=1,7 do
       sd.position = board.positionToWorld(Vector(C.court_pos_l[i]))
       spawnObjectData(sd)
       coroutine.yield(0)
     end
     --Starting Caballeros
+    sd.callback_function = function(o)
+      o.setName(pcol.." Caballero")
+      o.setColorTint(Color[pcol])
+      o.setLock(env.lock_player_cubes)
+      table.insert(pdata.caballeros, o.getGUID())
+      table.insert(pdata.start_caballeros, o.getGUID())
+    end
     sd.position = board.positionToWorld(Vector(C.start_pos_l[2]))
     spawnObjectData(sd)
     coroutine.yield(0)
@@ -299,8 +366,6 @@ function createPlayerCubes()
   end
   local c = 0
   while c < 30 do c=c+1; coroutine.yield(0) end
-  getObjectFromGUID(C.grande_template).destruct()
-  getObjectFromGUID(C.caballero_template).destruct()
   startPlacementPhase()
   return 1
 end
@@ -331,6 +396,30 @@ function startPlacementPhase()
   end
   UI_setAttribute("player_wait_pnl","height",tostring(140+(50*#GD.player_order)))
   UI_setAttribute("player_wait_pnl","active",true)
+end
+
+function placeStartingCubes()
+  if env.trace then log("startPlacementPhase()") end
+  for _,pcol in ipairs(GD.player_order) do
+    local pdata = GD.players[pcol]
+    local region_guid = C.region_guids[pdata.selected_region]
+    local region = C.region_info[region_guid]
+    local grande = getObjectFromGUID(pdata.grande)
+    grande.setPosition(region.start_loc[pcol])
+    setGrande(region_guid, pcol)
+    --place starting caballeros
+    local delta_x = {0.28, -0.32}
+    local delta_z = 1.15
+    for i,g in ipairs(pdata.start_caballeros) do
+      local o = getObjectFromGUID(g)
+      local pos = grande.getPosition()
+      pos.x = pos.x - delta_x[i]
+      pos.z = pos.z - delta_z
+      o.setPosition(pos)
+      addCaballero(region_guid, pcol, g)
+    end
+    pdata.start_caballeros = nil
+  end
 end
 
 --[[ Setup and begin the order bidding phase ]]
@@ -364,6 +453,12 @@ function startBidPhase()
   UI_setAttribute("player_wait_pnl","active",true)
   -- Move round marker
   GD.round = GD.round + 1
+  if GD.env.short_game then
+    if GD.round == 1 then GD.round = 2
+    elseif GD.round == 4 then GD.round = 5
+    elseif GD.round == 7 then GD.round = 8
+    end
+  end
   local marker = getObjectFromGUID(C.round_marker)
   marker.setPosition(C.round_marker_positions[GD.round])
   -- Reveal Action Cards
@@ -375,7 +470,13 @@ function startBidPhase()
     local stack = getObjectFromGUID(C.stacks[i])
     local pos = stack.getPosition()
     pos.y = pos.y + 3
-    local card = stack.takeObject({position=pos,flip=true})
+    local card = stack.takeObject({
+      position=pos,
+      flip=true,
+      callback_function = function(o)
+        Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+      end
+    })
     table.insert(GD.action_cards, card.getGUID())
   end
   local king_card = getObjectFromGUID(C.stacks[5])
@@ -383,6 +484,7 @@ function startBidPhase()
     king_card.setLock(false)
     king_card.flip()
   end
+  Wait.condition(function() king_card.setLock(true) end, function() return king_card.resting end)
   -- Activate bid buttons
   for g,d in pairs(GD.orderButtons) do
     d.button_on = true
@@ -404,7 +506,10 @@ function startActionPhase()
   local temp = {}
   for i=13,1,-1 do
     local d = GD.orderButtons[C.button_guids[i]]
-    if d.selected then table.insert(temp,d.selected) end
+    if d.selected then
+      table.insert(temp,d.selected)
+      GD.players[d.selected].p2c = d.court
+    end
     d.button_on = false
   end
   assert(#temp == #GD.player_order, "FATAL: startActionPhase() uable to build new player order from selected bids")
@@ -413,7 +518,7 @@ function startActionPhase()
   GD.current_player = GD.start_player
   GD.players_to_play = simpleDeepCopy(GD.player_order)
   local str = "Player Actions"
-  str = str.."\nChoose and play an available card"
+  str = str.."\nChoose an action card to play"
   str = str.."\nCaballeros move Court -> Region"
   UI_setAttribute("wait_message_txt","text",str)
   local first_player = GD.player_order[1]
@@ -433,91 +538,152 @@ function startActionPhase()
     pdata.show_disk = false
     object_UI_setAttribute(C.player_boards[pcol],"secret_disk","active",false)
     updatePlayerBoardUI(pcol)
+    -- Move Caballeros from Province to Court based on player's order button selection.
+    local board = getObjectFromGUID(C.player_boards[pcol])
+    for i=1,pdata.p2c do
+      if #pdata.provinces > 0 then
+        local o = getObjectFromGUID(pdata.provinces[#pdata.provinces])
+        table.insert(pdata.court, o.getGUID())
+        o.setPosition(board.positionToWorld(C.court_pos_l[#pdata.court]))
+        table.remove(pdata.provinces, #pdata.provinces)
+      end
+    end
   end
   UI_setAttribute("player_wait_pnl","active",true)
 
   -- Activate buttons on action cards
   log("TODO activate buttons on cards")
+  local p = {
+    click_function = "cardClick",
+    function_owner = Global,
+    position = {0,1,0},
+    width = 800,
+    height = 1000,
+    color = {r=0,g=0,b=0,a=0},
+  }
+  for i,g in ipairs(GD.action_cards) do
+    local card = getObjectFromGUID(g)
+    card.createButton(p)
+  end
+  local card = getObjectFromGUID(C.stacks[5])
+  card.createButton(p)
 end
 
---[[ A player clicked on an order button. Passthrough from the button object with parameters.
-  player_color: color of the player who clicked
-  guid: the guid of the button
-]]
-function orderButtonClick(params)
-  if env.trace then log("orderButtonClick()") end
-  assert(params, "orderButtonClick(): missing params")
-  local pcol = params.player_color
-  local guid = params.guid
+--[[ Handler for clicks on action cards. Active player selecting a card. ]]
+function cardClick(card, pcol, alt)
+  if env.trace then log("cardClick() "..pcol..", "..card.getGUID()) end
+  if pcol ~= GD.current_player then return end
+  card.clearButtons()
+  local pdata = GD.players[pcol]
+  pdata.action_card = card.getGUID()
+  --TODO; get card metadata
+  if C.stacks[5] == card.getGUID() then
+    card.setLock(false)
+    card.flip()
+    Wait.condition(function() card.setLock(true) end, function() return card.resting end)
+  else
+    table.remove(GD.action_cards, indexOf(GD.action_cards, card.getGUID()))
+    getObjectFromGUID(C.trash).putObject(card)
+  end
+
+   --TODO: any setup for the card's action??
+   log("--- TODO setup for action defined by card metadata, just testing flow for now")
+   -- if secret disk, back up current action player list & set up a new wait list for the dialog.
+   -- some cards may be used later, deal to player.  Handle these in onObjectDrop.
+   -- some cards require actions by opponents in table order from active player.  Backup player list and use a new order for the dialog.
+
+   GD.players[pcol].undo_button = true
+   GD.players[pcol].done_button = true
+   updatePlayerBoardUI(pcol)
+
+end
+
+--[[ Handler for player clicking on a order bid button. -- ]]
+function bidButton(player, button, id)
+  if env.trace then log("bidButton() "..player.color..", "..tostring(id)) end
+  if player.color ~= GD.current_player then return end
+  local index = tonumber(Split(id,"_")[2])
+  local guid = C.button_guids[index]
   local button_data = GD.orderButtons[guid]
   if not(button_data.selected)  then
-    button_data.selected = pcol
-    table.remove(button_data.players,indexOf(button_data.players,pcol))
-    table.insert(button_data.used,pcol)
+    button_data.selected = player.color
+    table.remove(button_data.players,indexOf(button_data.players,player.color))
+    table.insert(button_data.used,player.color)
     for g,d in pairs(GD.orderButtons) do
       d.visibility = {}
       updateOrderButtonUI(g,d)
     end
   end
-  table.remove(GD.players_to_bid,indexOf(GD.players_to_bid,pcol))
-  GD.players[pcol].undo_button = true
-  GD.players[pcol].done_button = true
-  updatePlayerBoardUI(pcol)
+  table.remove(GD.players_to_bid,indexOf(GD.players_to_bid,player.color))
+  GD.players[player.color].undo_button = true
+  GD.players[player.color].done_button = true
+  updatePlayerBoardUI(player.color)
 end
 
---[[ Global handler for collisions with regions. Uses a lock to prevent multiple triggers by the same object.
-    It's Global to prevent multiple regions from also triggering when dropped on borders.
-]]
-g_global_collision_lock = {}
-function tryCollision(guid)
-  if env.trace then log("tryCollision() "..tostring(guid)) end
-  if g_global_collision_lock[guid] then return false end
-  g_global_collision_lock[guid] = true
-  local obj = getObjectFromGUID(guid)
-  Wait.condition(function() g_global_collision_lock[guid] = nil end, function() return obj.resting end)
-  return true
-end
-
---[[ Add a Caballero to a region. ]]
-function addCaballero(params)
-  if env.trace then log("addCaballero() "..params.region_guid..", "..params.color..", "..params.caballero_guid) end
-  local region = params.region_guid
-  local color = params.color
-  local caballero = params.caballero_guid
-  if not(GD.regions[region].caballeros[color][caballero]) then
-    GD.regions[region].caballeros[color][caballero] = true
-    for g,r in pairs(GD.regions) do
-      if g ~= region then r.caballeros[color][caballero] = nil end
+--[[ Handle object drops on regions.
+  Object tags supported: Caballero, Grande, King, ScoreBoard
+  Call appropriate handler for the respective object tag.
+  NOTE: uses Physics.cast() per object dropped to get region under player cursor.  Possible
+        opportunity for optimization here to eleminate unnecessary casts at the same spot.
+        However with logging reduced it's not at all bad.
+--]]
+function onObjectDrop(pcol, obj)
+  local function getRegion()
+    local pos = Player[pcol].getPointerPosition()
+    pos.y = 0
+    local hits = Physics.cast({origin = pos,direction = {0,1,0,},type = 1,debug = false,})
+    for _,hit in ipairs(hits) do
+      if hit.hit_object.hasTag("Region") then
+        hit.hit_object.highlightOn(Color["Yellow"],1)
+        return hit.hit_object.getGUID()
+      end
     end
   end
-  updateBoardUI()()
+  if obj.hasTag("Caballero") then
+    addCaballero(getRegion(), Split(obj.getName()," ")[1], obj.getGUID())
+  elseif obj.hasTag("Grande") then
+    setGrande(getRegion(), Split(obj.getName()," ")[1])
+  elseif obj.hasTag("King") then
+    setKing(getRegion())
+  elseif obj.hasTag("ScoreBoard") then
+    log("--- TODO: handle mobile scoreboard")
+  end
 end
 
---[[ Sets a Grande in a region when player drops it there.]]
-function setGrande(params)
-  if env.trace then log("setGrande() "..params.region_guid..", "..params.color) end
-  local region = params.region_guid
-  local color = params.color
+--[[ Add a Caballero to a region. --]]
+function addCaballero(region_guid, color, caballero_guid)
+  if env.trace then log("addCaballero() "..region_guid..", "..color..":"..caballero_guid) end
+  if GD.regions[region_guid].caballeros[color][caballero_guid] then return end --ignore dupes
+  log("adding "..color.." Caballero "..caballero_guid.." to "..GD.regions[region_guid].name)
+  GD.regions[region_guid].caballeros[color][caballero_guid] = true
   for g,r in pairs(GD.regions) do
-    if g == region then r.grandes[color] = true
-    else r.grandes[color] = false
-    end
+    if g ~= region_guid and r.caballeros[color][caballero_guid] then r.caballeros[color][caballero_guid] = nil end
   end
-  updateBoardUI()()
+  updateBoardUI()
 end
 
---[[ Sets the King in a region when a player drops it there. ]]
+--[[ Sets a Grande in a region when player drops it there. --]]
+function setGrande(region_guid, color)
+  if env.trace then log("setGrande() "..region_guid..", "..color) end
+  if GD.regions[region_guid].grandes[color] then return end --ignore dupes
+  for g,r in pairs(GD.regions) do
+    if g == region_guid then r.grandes[color] = true else r.grandes[color] = false end
+  end
+  updateBoardUI()
+end
+
+--[[ Sets the King in a region when a player drops it there. --]]
 function setKing(region_guid)
   if env.trace then log("setKing() "..tostring(region_guid)) end
+  if GD.region[region_guid].king then return end
+  log("setting King in "..GD.regions[region_guid].name)
   for g,region in pairs(GD.regions) do
-    if g == region_guid then region.king = true
-    else region.king = false
-    end
+    if g == region_guid then region.king = true else region.king = false end
   end
-  updateBoardUI()()
+  updateBoardUI()
 end
 
---[[ Adds a Caballero to the Castillo when a player drops it into the bag. ]]
+--[[ Adds a Caballero to the Castillo when a player drops it into the bag. --]]
 function addToCastillo(params)
   if env.trace then log("addToCastillo()") end
   local color = params.color; assert(color,"addToCastillo(): parameter color missing")
@@ -539,18 +705,40 @@ function addToCastillo(params)
   return false
 end
 
---[[ Pass through from PlayerBoard.  User clicked on the secret disk. ]]
-function secretDisk(params)
-  if env.trace then log("secretDisk() "..tostring(params.index)) end
-  local index = GD.players[params.player_color].selected_region
-  index = index + 1
-  if index > 9 then index = 1 end
-  GD.players[params.player_color].selected_region = index
-  GD.players[params.player_color].done_button = true
-  updatePlayerBoardUI(params.player_color)
+--[[ Handler for clicks on the secret disk.  Rotate disk to next/previous
+    region based on mouse click and set accordingly in player data.
+    Left click increments, Right (alt) click decrements.
+--]]
+function rotateDisk(player, button, id)
+  if env.trace then log("rotateDisk() "..player.color..", "..button..", "..id) end
+  local color = Split(id,"_")[1]
+  if player.color ~= color then return end
+  if GD.players[player.color].disk_button then
+    local index = GD.players[player.color].selected_region
+    if button == "-1" then
+      if index < 9 then index = index + 1 else index = 1 end
+    elseif button == "-2" then
+      if index > 1 then index = index - 1 else index = 9 end
+    end
+    GD.players[player.color].selected_region = index
+    GD.players[player.color].done_button = true
+    updatePlayerBoardUI(player.color)
+  end
 end
 
---[[ Passthrough from PlayerBoard. Player clicked "Done" button. ]]
+--[[ Handler for player buttons on player board. ]]
+function playerButton(player, button, id)
+  if env.trace then log("playerButton() "..player.color..", "..tostring(id)) end
+  local color = Split(id,"_")[1]
+  local action = Split(id,"_")[2]
+  if player.color ~= color then return end
+  if action == "done" then playerDone(player.color)
+  elseif action == "undo" then playerUndo(player.color)
+  else log(" ERROR: playerDone() unknown action")
+  end
+end
+
+--[[ Player clicked "Done" button. ]]
 function playerDone(pcol)
   if env.trace then log("playerDone() "..tostring(pcol)) end
   if GD.phase == "placement" then
@@ -558,13 +746,13 @@ function playerDone(pcol)
       table.remove(GD.player_waitlist,indexOf(GD.player_waitlist,pcol))
       UI_setAttribute("wait_p"..tostring(indexOf(GD.player_order,pcol)).."_status_txt","text","Set")
       GD.players[pcol].disk_button = false
-      GD.players[pcol].undo_button = false
+      GD.players[pcol].undo_button = true
       GD.players[pcol].done_button = false
       GD.players[pcol].active = false
       updatePlayerBoardUI(pcol)
       if #GD.player_waitlist == 0 then
         UI_setAttribute("player_wait_pnl","active",false)
-        log("--- TODO: place Grande and starting Caballeros in each player's region selection.")
+        placeStartingCubes()
         startBidPhase()
       end
     end
@@ -618,6 +806,7 @@ function playerDone(pcol)
   end
 end
 
+--[[ Player clicked "Undo" button. ]]
 function playerUndo(pcol)
   if env.trace then log("playerUndo() "..tostring(pcol)) end
 end
@@ -645,6 +834,10 @@ function updateBoardUI()
   end
 end
 
+function nullFn()
+  log("nullFn()")
+end
+
 --[[ Update the player board UI for a given player with current data. ]]
 function updatePlayerBoardUI(pcol)
   if env.trace then log("updatePlayerBoardUI() "..pcol) end
@@ -653,14 +846,14 @@ function updatePlayerBoardUI(pcol)
   object_UI_setAttribute(board, "active_pnl","active",pdata.active)
   object_UI_setAttribute(board, "secret_disk","active",pdata.show_disk)
   object_UI_setAttribute(board, "disk","rotation",C.disk_rotations[pdata.selected_region])
-  object_UI_setAttribute(board, "undo","active",pdata.undo_button)
-  object_UI_setClass(board, "undo","")
-  object_UI_setAttribute(board, "done","active",pdata.done_button)
-  object_UI_setClass(board, "done","")
+  object_UI_setAttribute(board, pcol.."_undo","active",pdata.undo_button)
+  object_UI_setClass(board, pcol.."_undo","")
+  object_UI_setAttribute(board, pcol.."_done","active",pdata.done_button)
+  object_UI_setClass(board, pcol.."_done","")
   if pdata.disk_button then
     object_UI_setClass(board, "pointer","diskButton")
   else
-    object_UI_setClass(board, "pointer","")
+    object_UI_setClass(board, "pointer","") --BUG: doesn't work, workaround: ignore clicks in rotateDisk()
   end
 end
 
@@ -705,7 +898,7 @@ function updateOrderButtonUI(guid, button_data)
   end
 end
 
---[[ Called from global with current Castillo data to update the UI.  ]]  --TODO: move to Global
+--[[ Update Castillo UI with current data  ]]
 function updateCastilloUI()
   if env.trace then log("updateCastilloUI()") end
   for color,list in pairs(GD.castillo) do
@@ -739,7 +932,10 @@ function reloadUI(player_color)
 end
 
 #include ~/github/tts-el_grande/Constants.ttslua
+#include ~/github/tts-el_grande/Cards.ttslua
 #include ~/github/tts-lib/Utils.ttslua
+
+--/////////////// DEVELOPMENT STUFFS //////////////////
 
 -- function getLocalPos()
 --   local board = getObjectFromGUID(C.player_boards["Brown"])

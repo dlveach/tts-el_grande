@@ -12,16 +12,15 @@ function onLoad(saved_data)
     local info = simpleDeepCopy(Global.getTable("C").order_buttons[self.getGUID()])
     T.number = info.number
     T.name = "Order Button "..tostring(T.number)
-    self.UI.setAttribute("used_img","image","Button_"..tostring(T.number).."_used")
+    local xml = self.UI.getXmlTable()
+    local button = getXmlElement("btn_template",xml)
+    button.attributes.id = "button_"..tostring(T.number)
+    local image = getXmlElement("used_img",xml)
+    image.attributes.image = "Button_"..tostring(T.number).."_used"
+    self.UI.setXmlTable(xml)
     if env.trace then log(T.name.." loaded") end
     env.loaded = true
   end, 1)
-end
-
---[[ Handler for player clicking a button.  Passthrough to Global with button number. ]]
-function buttonClick(player, mouse, id)
-  if env.trace then log(T.name..": buttonClick() "..player.color) end
-  Global.call("orderButtonClick", {player_color=player.color,guid=self.getGUID()})
 end
 
 #include ~/github/tts-lib/Utils.ttslua
