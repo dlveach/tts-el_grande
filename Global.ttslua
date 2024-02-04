@@ -26,6 +26,7 @@ env.short_game = false
 env.intrigue_king_exp = false --TODO: future option
 env.grandissimo_exp = false --TODO: future option
 env.inquisitor_colonies_exp = false --TODO: future expansion
+env.cube_flash_rate = 30 --frames between cube color changes when pending
 
 GD = {}
 
@@ -98,7 +99,18 @@ function onLoad(saved_data)
     GD.action_cards = {}
     GD.game_started = false
     GD.phase = ""
-    --TODO: set start dialog toggles
+    GD.action = {
+      guid = "",
+      player = "",
+      opponents = {},
+      pending_cubes = {},
+    }
+    --setup start dialog
+    UI_setAttribute("verbose","isOn",GD.env.verbose)
+    UI_setAttribute("short","isOn",GD.env.short_game)
+    UI_setAttribute("intrique_king","isOn",GD.env.intrigue_king_exp)
+    UI_setAttribute("grandissimo","isOn",GD.env.grandissimo_exp)
+    UI_setAttribute("inquisitor_colonies","isOn",GD.env.inquisitor_colonies_exp)
     UI_setAttribute("start_pnl","active",true)
   end
   updateCastilloUI()
@@ -106,6 +118,8 @@ function onLoad(saved_data)
   --set up a hotkey to trigger UI reload.
   clearHotkeys()
   addHotkey("Reload all UI", function(player_color) reloadUI(player_color) end)
+  --start the cube flasher coro
+  startLuaCoroutine(Global, "flashCubes")
 end
 
 --[[ Save game state ]]
@@ -232,7 +246,6 @@ Game start options handler
 function startOptions(player, value, id)
   if env.trace then log("startOptions() player: "..tostring(player.color)..", id: "..tostring(id)) end
   local setting = (value == 'True')
-  UI.setAttribute(id, "isOn", setting)
   if id == "verbose" then
     GD.env.verbose = setting
   elseif id == "short" then
@@ -243,7 +256,7 @@ function startOptions(player, value, id)
   else
     log("ERROR: startOptions(): unknown id: "..tostring(id))
   end
-  UI.setAttribute(id,"isOn",setting)
+  UI_setAttribute(id,"isOn",setting)
 end
 
 --[[ Set up the game environment.
@@ -316,6 +329,7 @@ function createPlayerCubes()
     sd.callback_function = function(o)
       o.setName(pcol.." Grande")
       o.setColorTint(Color[pcol])
+      o.memo = pcol
       o.setLock(env.lock_player_cubes)
       pdata.grande = o.getGUID()
     end
@@ -326,6 +340,7 @@ function createPlayerCubes()
     sd.callback_function = function(o)
       o.setName(pcol.." Caballero")
       o.setColorTint(Color[pcol])
+      o.memo = pcol
       o.setLock(env.lock_player_cubes)
       table.insert(pdata.caballeros, o.getGUID())
       table.insert(pdata.provinces, o.getGUID())
@@ -340,6 +355,7 @@ function createPlayerCubes()
     sd.callback_function = function(o)
       o.setName(pcol.." Caballero")
       o.setColorTint(Color[pcol])
+      o.memo = pcol
       o.setLock(env.lock_player_cubes)
       table.insert(pdata.caballeros, o.getGUID())
       table.insert(pdata.court, o.getGUID())
@@ -353,6 +369,7 @@ function createPlayerCubes()
     sd.callback_function = function(o)
       o.setName(pcol.." Caballero")
       o.setColorTint(Color[pcol])
+      o.memo = pcol
       o.setLock(env.lock_player_cubes)
       table.insert(pdata.caballeros, o.getGUID())
       table.insert(pdata.start_caballeros, o.getGUID())
@@ -595,7 +612,6 @@ function cardClick(card, pcol, alt)
    GD.players[pcol].undo_button = true
    GD.players[pcol].done_button = true
    updatePlayerBoardUI(pcol)
-
 end
 
 --[[ Handler for player clicking on a order bid button. -- ]]
@@ -626,6 +642,10 @@ end
   NOTE: uses Physics.cast() per object dropped to get region under player cursor.  Possible
         opportunity for optimization here to eleminate unnecessary casts at the same spot.
         However with logging reduced it's not at all bad.
+  TODO: if outside current Region, snapback if not in a valid move action
+  TODO: handle drops outside of regions.
+    -- handle drop on playerboard (return to Court/Province)
+    -- snapback if off board
 --]]
 function onObjectDrop(pcol, obj)
   local function getRegion()
@@ -683,7 +703,11 @@ function setKing(region_guid)
   updateBoardUI()
 end
 
---[[ Adds a Caballero to the Castillo when a player drops it into the bag. --]]
+--[[ Adds a Caballero to the Castillo when a player drops it into the bag.
+    Caled from Castillo.ttslua.
+    TODO: still pretty EXPERIMENTAL
+    TODO: handling this in undo could be fun
+--]]
 function addToCastillo(params)
   if env.trace then log("addToCastillo()") end
   local color = params.color; assert(color,"addToCastillo(): parameter color missing")
@@ -691,6 +715,7 @@ function addToCastillo(params)
   local type = params.type; assert(type,"addToCastillo(): parameter type missing")
   --TODO: add more state checks
   if GD.game_started then
+    --TODO: check for and remove from pending_cubes queue?
     if type == "Caballero" then
       table.insert(GD.castillo[color],{guid})
       updateCastilloUI()
@@ -834,10 +859,6 @@ function updateBoardUI()
   end
 end
 
-function nullFn()
-  log("nullFn()")
-end
-
 --[[ Update the player board UI for a given player with current data. ]]
 function updatePlayerBoardUI(pcol)
   if env.trace then log("updatePlayerBoardUI() "..pcol) end
@@ -911,6 +932,58 @@ function updateCastilloUI()
   end
 end
 
+--[[ Coroutine: flash pending cubes in an action between cube color and White.
+  NOTE: EXPERIMENTAL trying this idea out.  Needs lots of testing with things
+  like the Castillo.
+  Checks done to prevent coro from failing if any cube objects go missing
+  from being dropped ina container etc.
+--]]
+function flashCubes()
+  if env.trace then log("Starting coro flashCubes()") end
+  local n = 0
+  local on = false
+  while true do
+    if n >= env.cube_flash_rate then
+      for _,g in ipairs(GD.action.pending_cubes) do
+        local o = getObjectFromGUID(g)
+        if o then
+          if on then o.setColorTint(Color[o.memo])
+          else o.setColorTint(Color["White"]) end
+        end
+      end
+      n=0
+      on = not(on)
+    end
+    n=n+1
+    coroutine.yield(0)
+  end
+  return 1
+end
+--[[ Manage cubes in the action pending_cubes queue.
+  See: flashCubes()
+  Required parameters:
+  action: "add" or "remvoe"
+  guid: guid of cube in pending_cubes queue
+--]]
+function pendingCubes(action, guid)
+  if env.trace then log("pendingCube() "..tostring(action)..", "..tostring(guid)) end
+  if not(action) or not(guid) then
+    log("WARN: pendingCube() ignoring missing parameters & bailing out")  --DEBUG
+    return
+  end
+  if action == "add" then table.insert(GD.action.pending_cubes, guid)
+  elseif action == "remove" then
+    local index = indexOf(GD.action.pending_cubes, guid)
+    if index > 0 then table.remove(GD.action.pending_cubes, index)
+    else log("WARN:  pendingCube() "..tostring(guid).." not in pending_cubes queue")  --DEBUG
+    end
+    local o = getObjectFromGUID(guid)
+    if o then o.setColorTint(Color[o.memo])
+    else log("WARN:  pendingCube() no object for "..tostring(guid))  --DEBUG
+    end
+  else log("WARN: pendingCube() unknown action "..tostring(action))  --DEBUG
+  end
+end
 
 --[[ Force reload of all UI elements when somethign isn't showing.
     HACK: Linked to numpad 1 hotkey for the game.
