@@ -8,7 +8,7 @@
   <Panel class="Caballero" active="false" />
   <Panel class="Grande" active="false" />
   <Text color="White" />
-  <Cell dontUseTableCellBackground="true"/> <!-- TESTING-->
+  <Text class="Title" color="rgb(0.9,0.9,0)" />
 </Defaults>
 
 <Panel id="regions" class="Light Base" active="false" width="1820" height="260" position="0 -150 0" rotation="0 0 180" padding="10" scale="0.25 0.25">
@@ -19,15 +19,15 @@
       </Row>
       <Row preferredHeight="38"> <!-- Header Row -->
         <Cell padding="5 5 1 1"><Panel class="Light Base"><Text class="M Title" text="King"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R1_H_pnl" class="Clear"><Text id="R1_H_txt" class="M LGray" text="Galicia"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R2_H_pnl" class="Clear"><Text id="R2_H_txt" class="M LGray" text="Basque Country"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R3_H_pnl" class="Clear"><Text id="R3_H_txt" class="M LGray" text="Old Castille"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R4_H_pnl" class="Clear"><Text id="R4_H_txt" class="M LGray" text="Aragon"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R5_H_pnl" class="Clear"><Text id="R5_H_txt" class="M LGray" text="Catalonia"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R6_H_pnl" class="Clear"><Text id="R6_H_txt" class="M LGray" text="New Castille"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R7_H_pnl" class="Clear"><Text id="R7_H_txt" class="M LGray" text="Valencia"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R8_H_pnl" class="Clear"><Text id="R8_H_txt" class="M LGray" text="Seville"/></Panel></Cell>
-        <Cell padding="5 5 1 1"><Panel id="R9_H_pnl" class="Clear"><Text id="R9_H_txt" class="M LGray" text="Granada"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R1_H_pnl" class="Base Clear"><Text id="R1_H_txt" class="M LGray" text="Galicia"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R2_H_pnl" class="Base Clear"><Text id="R2_H_txt" class="M LGray" text="Basque Country"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R3_H_pnl" class="Base Clear"><Text id="R3_H_txt" class="M LGray" text="Old Castille"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R4_H_pnl" class="Base Clear"><Text id="R4_H_txt" class="M LGray" text="Aragon"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R5_H_pnl" class="Base Clear"><Text id="R5_H_txt" class="M LGray" text="Catalonia"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R6_H_pnl" class="Base Clear"><Text id="R6_H_txt" class="M LGray" text="New Castille"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R7_H_pnl" class="Base Clear"><Text id="R7_H_txt" class="M LGray" text="Valencia"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R8_H_pnl" class="Base Clear"><Text id="R8_H_txt" class="M LGray" text="Seville"/></Panel></Cell>
+        <Cell padding="5 5 1 1"><Panel id="R9_H_pnl" class="Base Clear"><Text id="R9_H_txt" class="M LGray" text="Granada"/></Panel></Cell>
       </Row>
       <Row preferredHeight="48"> <!-- Scoring Row -->
         <Cell><Text class="M LGray" text="Scoring"/></Cell>

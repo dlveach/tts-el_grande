@@ -6,18 +6,19 @@
 <Defaults>
   <Panel raycastTarget="false" />
   <Panel class="Main" rotation="0 0 180" scale="0.5 0.5" />
-  <image class="diskButton" onClick="Global/rotateDisk" />
+  <image class="diskButton" onClick="Global/diskClick" />
+  <Button class="action" fontSize="12" onClick="Global/actionClick" />
 </Defaults>
 
-
-<Panel id="button_pnl" active="false" class="Main Light Base" width="200" height="190" position="-102 -55 -15" padding="10">
+<!-- Main player status panel -->
+<Panel id="button_pnl" active="false" class="Main Light Base" width="200" height="190" position="-102 -55 -15" padding="5">
   <Panel class="Dark Viewport">
     <TableLayout>
       <Row preferredHeight="40">
         <Cell><Panel id="active_pnl" active="false" class="Title" color="Pink"><Text id="active_txt" fontSize="28" text="Active"/></Panel></Cell>
       </Row>
       <Row id="undo_row" preferredHeight="65">
-        <Cell padding="20 20 15 10"><Button id="undo" active="false" onClick="Global/playerButton" text="Undo"/></Cell>
+        <Cell padding="20 20 15 10"><Button id="undo" active="false" onClick="Global/playerButton" text="Undo Turn"/></Cell>
       </Row>
       <Row id="skip_row" preferredHeight="65" active="false">
         <Cell padding="20 20 10 15"><Button id="skip" active="false" onClick="Global/playerButton" text="Skip"/></Cell>
@@ -29,10 +30,74 @@
   </Panel>
 </Panel>
 
+<!-- Card action panel -->
+<Panel id="action_pnl" active="false" class="Main Light Base" width="200" height="190" position="102 -55 -15" padding="5">
+  <Panel class="Dark Viewport">
+    <TableLayout>
+      <Row id="action_desc_row" active="true" preferredHeight="60">
+        <Cell padding="5 5 0 0">
+          <Text id="action_desc_txt" class="VS" >
+            Description of the action
+            Select stage to complete first
+            Done skips incomplete stages
+          </Text>
+        </Cell>
+      </Row>
+      <Row id="action_court_row" active="false" preferredHeight="60">
+        <Cell padding="10 10 5 5">
+          <Panel id="action_court_pnl">
+            <Button id="action_court" class="action" text="Move Caballeros from Court to Regions" />
+          </Panel>
+          <Panel id="action_court_finished" active="false">
+            <Text class="M LGray" text="Court Completed"/>
+          </Panel>
+        </Cell>
+      </Row>
+      <Row id="action_special_row" active="false" preferredHeight="60">
+        <Cell padding="10 10 5 5">
+          <Panel id="action_special_pnl">
+            <Button id="action_special" class="action" text="Execute the card special action" />
+          </Panel>
+          <Panel id="action_special_finished" active="false">
+            <Text class="M LGray" text="Special Completed"/>
+          </Panel>
+        </Cell>
+      </Row>
+      <Row id="action_stage_row" active="false" preferredHeight="120">
+        <Cell>
+          <TableLayout>
+            <Row id="stage_status_row" active="false" preferredHeight="40">
+              <Cell padding="10 10 5 5">
+                <Text id="stage_status_txt" class="VS" text="Status: 0 / 6 Caballeros moved"/>
+              </Cell>
+            </Row>
+            <Row id="stage_finished_row" active="false" preferredHeight="40">
+              <Cell padding="20 20 5 5">
+                <Button id="stage_finished" class="action" text="Finished"/>
+              </Cell>
+            </Row>
+            <Row id="stage_finished_placeholder_row" active="false" preferredHeight="40"/>
+            <Row id="stage_next_row" active="false" preferredHeight="40">
+              <Cell padding="20 20 5 5">
+                <Button id="stage_next" class="action" text="Next"/>
+              </Cell>
+            </Row>
+            <Row id="stage_reset_row" active="false" preferredHeight="40">
+              <Cell padding="20 20 5 5">
+                <Button id="stage_reset" class="action" text="Reset"/>
+              </Cell>
+            </Row>
+          </TableLayout>
+        </Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+
 <!-- Secret selection panel -->
 <Panel id="secret_disk" active="false" width="200" height="200" position="0 -50 -100" scale="0.5 0.5">
   <Panel id="disk" rotation="0 0 0"><Image image="Secret_Disk"/></Panel>
-  <Image id="pointer" image="Pointer" scale="0.5 0.5" class="diskButton"/>
+  <Image id="pointer" image="Pointer" scale="0.35 0.35" class="diskButton" rotation="0 0 180" position="0 18 0"/>
 </Panel>
 
 </XmlLayout>

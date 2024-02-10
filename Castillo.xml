@@ -10,7 +10,7 @@
   <Text class="XXL" fontSize="70" />
 </Defaults>
 
-<Panel id="info" width="720" height="240" class="Light Base" position="0 280 430" rotation="0 0 180" padding="10">
+<Panel id="info" active="false" width="720" height="240" class="Light Base" position="0 280 430" rotation="0 0 180" padding="10">
   <Panel class="Dark Viewport">
     <TableLayout columnWidths="140 140 140 140 140">
       <Row preferredHeight="80">

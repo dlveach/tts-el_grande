@@ -1,40 +1,11 @@
 
-env = {}
-
---[[ TTS Load function --]]
+--[[ Just report this code loaded.
+]]
 function onLoad(saved_data)
-  Wait.frames(function()  --wait for Global to load
-    local tmp = Global.getTable("env")
-    if tmp == nil then return end --supress global load errors
-    env = simpleDeepCopy(tmp)
-    env.loaded = true
-    if env.trace then log("Castillo loaded") end
-  end, 1)
+  log("Castillo loaded")
 end
-
---[[ Handle something entering the Castillo.
-    Only allow Caballeros or Grandes to enter,
-    everything else bump to the side and notify players.
---]]
+--[[ Just preventing normal bag entry.  See Global onObjectDrop()
+]]
 function tryObjectEnter(obj)
-  if obj.hasTag("Caballero") or obj.hasTag("Grande") then
-    local color = Split(obj.getName()," ")[1]
-    assert(color, "Castillo: tryObjectEnter(): could not determine obj color")
-    local success = false
-    if obj.hasTag("Caballero") then
-      success = Global.call("addToCastillo",{guid=obj.guid,color=color,type="Caballero"})
-    else
-      success = Global.call("addToCastillo",{guid=obj.guid,color=color,type="Grande"})
-    end
-  end
-  if not(success) then
-    --push object to the side
-    pos = obj.getPosition()
-    pos.x = pos.x - 4
-    pos.y = pos.y + 2
-    obj.setPosition(pos)
-  end
-  return success
+  return false
 end
-
-#include ~/github/tts-lib/Utils.ttslua

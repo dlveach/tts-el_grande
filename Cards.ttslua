@@ -1,8 +1,48 @@
---Card metadata
+--[[Card metadata
+  NOTE:
+    - for multiple specials, order by intermediate then final in table.
+    - structure of special.id is sometimes parsed, be careful.  especially move_*_caballero
+]]
 cards = {
-  ["a57d8a"] = {
-    name = "King's card",
-    caballeros = 5,
-    specials = {"move_king"},
+  ["example"] = {
+    name = "card name",
+    description = "description of the action", --actually the special action
+    court = 5, --num cubes can be moved from court to regions
+    specials = {
+      {
+        id="action_id",
+        desc="action stage description",
+        dest="any_region",
+        min=0, --min cubes moved entire special
+        max=0, --max cubes moved entire special
+        each=false, --min/max are evaluated per player/opponent (any/opp in 2nd field of id)
+        key="move_caballero", --move only own
+        key="move_opp_caballero", --move opponent cubes, each(min-each/max_each) or any(min/max) may appliy
+        key="move_any_caballero", --move own or oppoent cubes. min/max or min-each/max-each may apply
+        opp=true, --Only opponents do the thing
+        all=true, --all players do the thing
+        disk=true, --secret disk selection occurs to define affected regions
+        any_region, --any region except the king's or the castillo
+      },
+    },
+  },
+  ["a57d8a"] = { name="King's card", description="King's Card: Move the King to any Region",
+    court=5, specials={{id="move_king",dest="any_region",desc="Move King?"},},
+  },
+  ["a76961"] = { name="The Court", description="The Court: Move 2 Caballeros from Provinces to Court",
+    court=4, specials={{id="prov2court",count=2,immediate=true,},},
+  },
+  ["238e55"] = { name="Intrique", description="Intrique: Move any 3 Caballeros on the board",
+    court=1, specials={{id="move_any_caballero",max=3,min=0,desc="To Castillo or any region but the King's",},},
+  },
+  ["5a4621"] = { name="Intrique", description="Intrique: Move any 3 foriegn Caballeros on the board",
+    court=1, specials={{id="move_opp_caballero",dest="any_region",max=3,min=0,desc="To Castillo or any region but the King's",},},
+  },
+  --TODO: test ba6c53
+  ["ba6c53"] = { name="Provinces", description="Provinces: Opponents return 2 Caballeros",
+    court=2, specials={{id="ret2provinces", disk=true, opp=2, count=2, king=true, desc="Opponents select a region",},},
+  },
+  ["4b865f"] = { name="Grande", description="Grande: may move your Grande to a different region",
+    court=4, specials={{id="grande",dest="any_region",desc="Move to any region but the King's",},},
   },
 }

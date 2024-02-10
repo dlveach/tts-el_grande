@@ -5,17 +5,10 @@ env = {}
 --[[ TTS Load function. TODO: may not even need script any more.  Keeping as placeholder until confirmed. --]]
 function onLoad(saved_state)
   Wait.frames(function()
-    local tmp = Global.getTable("env")
-    if tmp == nil then return end
-    env = simpleDeepCopy(tmp)
-    local info = simpleDeepCopy(Global.getTable("C").region_info[self.getGUID()])
-    T.name = info.name
-    T.scoring_order = info.scoring_order
-    T.scoring = info.scoring
-    env.loaded = true
+    env.trace = Global.getTable("env").trace
+    T.name = Global.getTable("C").regions_template[self.getGUID()].name
     if env.trace then log("Region "..T.name.." loaded") end
   end, 1)
 end
 
-
-#include ~/github/tts-lib/Utils.ttslua
+-- #include ~/github/tts-lib/Utils.ttslua
