@@ -29,7 +29,6 @@
     </TableLayout>
   </Panel>
 </Panel>
-
 <!-- Card action panel -->
 <Panel id="action_pnl" active="false" class="Main Light Base" width="200" height="190" position="102 -55 -15" padding="5">
   <Panel class="Dark Viewport">
@@ -93,11 +92,20 @@
     </TableLayout>
   </Panel>
 </Panel>
-
 <!-- Secret selection panel -->
 <Panel id="secret_disk" active="false" width="200" height="200" position="0 -50 -100" scale="0.5 0.5">
   <Panel id="disk" rotation="0 0 0"><Image image="Secret_Disk"/></Panel>
   <Image id="pointer" image="Pointer" scale="0.35 0.35" class="diskButton" rotation="0 0 180" position="0 18 0"/>
+</Panel>
+<!-- Cube staging panel -->
+<Panel id="stage_pnl" active="false" class="Main Light Base" width="200" height="190" position="0 -55 -15" padding="5">
+  <Panel class="Dark Viewport">
+    <TableLayout>
+      <Row preferredHeight="30">
+        <Cell><Panel class="Light Title"><Text id="stage_title_txt" fontSize="VS" text="Dest: _region name_"/></Panel></Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
 </Panel>
 
 </XmlLayout>

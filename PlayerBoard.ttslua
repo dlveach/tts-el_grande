@@ -9,6 +9,10 @@ function onLoad(saved_data)
     if tmp == nil then return end --supress errors when Global fails to load
     env.trace = tmp.trace
     local xml = self.UI.getXmlTable()
+    if not(xml) or #xml == 0 then
+      log("ERROR: PlayerBoard "..color.." onLoad() failed to get XML UI, exiting")
+      return
+    end
     --Disk
     local disk = getXmlElement("secret_disk",xml)
     disk.attributes.visibility = color

@@ -22,12 +22,13 @@
   <Button class="Hidden" color="rgba(0,0,0,0)" />
 
   <Text font="Arial" color="rgb(0.9,0.9,0.9)" shadow="rgba(0,0,0,1)" fontSize="16" />
-  <Text class="Title" fontSize="24" color="rgb(0.9,0.9,0)"  /> <!-- BUG: get rid of font size here! -->
+  <Text class="Title" color="rgb(0.9,0.9,0)" />
   <Text class="Gray" color="Gray" />
   <Text class="LGray" color="rgba(1,1,1,0.5)" />
   <Text class="Yellow" color="rgb(0.9,0.9,0)" />
   <Text class="White" color="white" />
   <Text class="Cyan" color="Cyan" />
+  <Text class="LBrown" color="rgb(0.8,0.4,0)" />
   <Text class="B" fontStyle="Bold" />
   <Text class="Tiny" fontSize="10" />
   <Text class="VS" fontSize="12" />

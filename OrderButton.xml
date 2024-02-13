@@ -36,7 +36,7 @@
   <TableLayout columnWidths="50 50 50 50 50">
     <Row id="info_row_1" preferredHeight="50">
       <Cell id="info_1_cell" padding="5">
-        <Panel id="info_1_pnl" class="Base" color="Brown">
+        <Panel id="info_1_pnl" class="Base" color="Blue">
           <Text id="info_1_txt" class="L" text="B" color="White"/>
         </Panel>
       </Cell>

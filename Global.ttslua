@@ -4,20 +4,21 @@
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
   -TODO: remove cube from pending move when placed back in origin region, reset things back to original state wrt that cube and origin region.
-  m
+
 ]]
 env = {}
-env.version = "0.1 experimental"
+env.version = "0.1 initial dev"
 env.debug = false
 env.trace = true
 env.trace2 = false
--- env.test_players = {"Brown","Red","Green","Purple","Yellow"}
-env.test_players = {"Red","Green","Purple"}
+env.test_players = {"Blue","Red","Green","Purple","Yellow"}
+-- env.test_players = {"Red","Green","Purple"}
 env.in_dev = false --leave some objects interactable for dev purposes.
 env.use_saved_data = true
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
 env.save_stats = false --log save data size every onSave() call.  Noisy.
 env.lock_player_cubes = true --false for testing
+env.ignore_drop = false --true for testing
 --[[  defaults for game environment settings ]]
 env.game_verbose = true
 env.short_game = false
@@ -91,7 +92,6 @@ function onLoad(saved_data)
       e.used = {}
     end
     G.obj.regions = simpleDeepCopy(C.regions_template)
-    -- G.obj.castillo = {Brown={},Red={},Green={},Purple={},Yellow={},}
     G.obj.castillo = simpleDeepCopy(C.castillo_template)
     --Game data
     G.d = {}
@@ -182,7 +182,11 @@ function restoreGame()
       local o = getObjectFromGUID(g)
       if o then
         o.clearButtons()
-        o.createButton(C.card_button)
+        local selected = false
+        for _,pdata in pairs(G.d.players) do
+          if pdata.action_card == g then selected = true; break end
+        end
+        if not(selected) then o.createButton(C.card_button) end
       end
     end
   end
@@ -286,6 +290,10 @@ function setupGame(player, button, id)
       getObjectFromGUID(C.player_boards[pcol]).destruct()
     end
     if n == #C.table_order then n=1 else n=n+1 end
+  end
+  if not(G.env.intrigue_king_exp) then
+    getObjectFromGUID(C.caballero_deck).destruct()
+    getObjectFromGUID(C.intrique_setup_card).destruct()
   end
   --setup bid buttons
   for g,e in pairs(G.obj.bid_buttons) do
@@ -472,7 +480,6 @@ function startBidPhase()
     pdata.undo_button = false
     pdata.done_button = false
     pdata.show_disk = false
-    -- object_UI_setAttribute(C.player_boards[pcol],"secret_disk","active",false)
     updatePlayerBoardUI(pcol)
   end
   G.d.status.show = true
@@ -574,7 +581,7 @@ function startActionPhase()
   G.d.status.waitlist = {}
   G.d.status.info = "Player Actions"
   G.d.status.info = G.d.status.info.."\nChoose an action card to play"
-  G.d.status.info = G.d.status.info.."\nCaballeros move Court -> Region"
+  -- G.d.status.info = G.d.status.info.."\nCaballeros move Court -> Region"
   G.d.active_player = G.d.player_order[1]
   for i,pcol in ipairs(G.d.player_order) do
     local pdata = G.d.players[pcol]
@@ -710,8 +717,32 @@ function processAction(pcol, opt)
       elseif a.specials[1].id == "grande" then
         a.stage_status = a.specials[1].desc
         if a.specials[1].dest == "any_region" then a.any_region = true end
+      elseif a.specials[1].id == "special_scoring" then
+        log("executing immediate special "..a.specials[1].id)
+        if a.specials[1].region_score then
+          local regions = {}
+          if G.obj.castillo.scoring[1] == a.specials[1].region_score then
+            table.insert(regions,"castillo")
+          end
+          for _,r in pairs(G.obj.regions) do
+            if r.scoring[1] == a.specials[1].region_score then table.insert(regions,r.scoring_order) end
+          end
+          if #regions > 0 then startScoring(regions,true) end
+          a.special_completed = true
+          a.stage = "main"
+        elseif a.specials[1].caballeros then
+
+        elseif a.specials[1].player_choice then
+          --Show active player disk
+          --add active player to waitlist
+          --save status backup
+          --start a wait for user to select (waitlist empty) -> start special scoring with active_player.selected_region
+          --restore status backup
+        else
+          log("WARN: processAction() unknown special_scoring action")
+        end
       elseif Split(a.specials[1].id,"_")[1] == "move" then
-        if a.specials[1].each then a.caballeros_moved = {Brown=0,Red=0,Green=0,Purple=0,Yellow=0} end
+        if a.specials[1].each then a.caballeros_moved = {Blue=0,Red=0,Green=0,Purple=0,Yellow=0} end
         if a.specials[1].max then a.stage_status = "Moved 0 of "..tostring(a.specials[1].max).." Caballeros"
         else a.stage_status = "Moved 0 Caballeros" end
       end
@@ -888,8 +919,22 @@ function addCaballero(region, color, guid)
       end
     end
     add()
-  elseif G.d.phase == "castillo" then
-    --TODO: just return true when auto placing from the castillo during scoring?
+  elseif G.d.phase == "scoring" then
+    local dest = C.region_guids[G.d.players[color].selected_region]
+    if region ~= dest then debug("failed destination check during castillo placement"); return false end
+    if indexOf(G.d.players[color].staged_cubes,guid) > 0 then
+      table.remove(G.d.players[color].staged_cubes,indexOf(G.d.players[color].staged_cubes,guid))
+      if #G.d.players[color].staged_cubes == 0 then
+        G.d.players[color].disk_button = false
+        G.d.players[color].undo_button = false
+        G.d.players[color].done_button = true
+        G.d.players[color].active = true
+        updatePlayerBoardUI(color)
+      end
+    else
+      debug("ERROR: cube "..guid.." not in player "..color.." staged cubes list"); return false
+    end
+    add()
     return true
   else
     log("WARN: addCaballero() unknown phase")
@@ -1060,49 +1105,72 @@ end
 ]]
 function addToCastillo(obj)
   if env.trace then log("addToCastillo()") end
+  local function debug(str) if true then log("DEBUG: addToCastillo() "..str) end end --DEBUG: set false to disable
   local color = obj.memo; assert(color,"addToCastillo(): color missing")
   local guid = obj.getGUID()
   local castillo = getObjectFromGUID(C.castillo)
-  if G.d.phase == "court" then
-    if obj.hasTag("Caballero") and sizeOf(a.caballeros_moved) < a.caballeros then
-      castillo.putObject(obj)
-      table.insert(G.obj.castillo.caballeros[color],{guid})
-      updateCastilloUI()
-      if not(a.undo[guid]) then
-        a.undo[guid]={a="castillo",origin=G.obj.snaps[guid],}
-      else
-        --Maybe moved from court to region then dropped in Castillo, update undo
-        a.undo[guid].a = "castillo"
-        a.undo[guid].guid = guid
-        if contains(a.pending_cubes,guid) then pendingCubes("remove",guid) end
-      end
+  local function add()
+    if contains(G.d.action.pending_cubes,guid) then pendingCubes("remove",guid) end
+    castillo.putObject(obj)
+    castillo.highlightOn(Color["Yellow"],1)
+    table.insert(G.obj.castillo.caballeros[color],guid)
+    for g,r in pairs(G.obj.regions) do
+      if r.caballeros[color][guid] then r.caballeros[color][guid] = nil end
     end
-  elseif G.d.phase == "actions" then
-    local a = G.d.action
-    if obj.hasTag("Caballero") then
-      if contains(a.actions, "move_caballeros") and sizeOf(a.caballeros_moved) < a.caballeros then
-        castillo.putObject(obj)
-        table.insert(G.obj.castillo.caballeros[color],{guid})
-        updateCastilloUI()
-        if not(a.undo[guid]) then
-          a.undo[guid]={a="castillo",origin=G.obj.snaps[guid],}
-        else
-          --May be moved between regions then dropped in Castillo, update undo
-          a.undo[guid].a = "castillo"
-          a.undo[guid].guid = guid
-          if contains(a.pending_cubes,guid) then pendingCubes("remove",guid) end
-        end
-      elseif obj.hasTag("Grande") then
-        --TODO: FUTURE check for game state allowing Grande in Castillo.
-        log("DEBUG: addToCastillo() fail, Grande in Castillo not implemented")
-      else
-        log("WARN: addToCastillo() unknown object"); log(obj.getTags())
-      end
-    end
-  else
-    log("ERROR: addToCastillo() unhandled game phase")
+    updateCastilloUI()
   end
-  return false
+  if obj.hasTag("Caballero") then
+    if G.d.phase == "actions" then
+      local a = G.d.action
+      if a.stage == "special" then
+        debug("add Caballero to Castillo during action special stage")
+        --TODO: implement
+        debug("TODO: add to Castillo during special not implemented yet")
+      elseif a.stage == "court" then
+        debug("add Caballero to Castillo during action court stage")
+        if not(contains(a.pending_cubes,guid)) then
+          if a.caballeros_moved >= a.court then debug("failed move limit check"); return false end
+          if not(contains(G.d.players[a.player].court, guid)) then debug("failed source is court check"); return false end
+        end
+      else
+        debug("ERROR: unhandled action stage"); return false
+      end
+      --passed checks
+      if a.stage == "court" then
+        if a.undo.court[guid] then --was alread moved so update the undo
+          debug("update undo for "..guid)
+          a.undo.court[guid].id = "castillo"
+          a.undo.court[guid].color = obj.memo
+          pendingCubes("remove",guid)
+        else
+          a.undo.court[guid]={id="castillo",g=guid,color=obj.memo,pcol=a.player,origin="court"}
+          a.caballeros_moved = a.caballeros_moved + 1
+          local pdata = G.d.players[a.player]
+          if indexOf(pdata.court,guid) > 0 then table.remove(pdata.court,indexOf(pdata.court,guid)) end
+          updatePlayerBoardUI(a.player)
+        end
+      elseif a.stage == "special" then
+        return false --TODO: imlement: see addCaballero() above
+        --determine source
+        --check action origin requirement
+        --handle "each"
+        --increment counters, update stage_status
+        --update pending_cubes
+        --update UI
+        --add or update undo (u.id, u.snap, u.region_guid)
+      end
+      add()
+    else
+      debug("ERROR: unhandled game phase")
+    end
+  elseif obj.hasTag("Grande") then
+    debug("fail, Grande in Castillo not implemented")
+    --base game doesn't do this, but Intrigue expansion might
+    return false
+  else
+    debug("ERROR: unhandled obj tag")
+  end
+  return true
 end
 --[[ Player clicked "Done" button.
 ]]
@@ -1231,18 +1299,26 @@ function playerDone(pcol)
       else
         getObjectFromGUID(C.trash).putObject(card)
       end
+      pdata.action_card = ""
       table.remove(G.d.action_cards, indexOf(G.d.action_cards, card.getGUID()))
       cleanupCourt(pcol)
       resetAction()
     end
   elseif G.d.phase == "scoring" then
+    --check staged cubes, if not all placed just return doing nothing
+    if pdata.staged_cubes and #pdata.staged_cubes > 0 then
+      log("DEBUG: playerDone() player not finished placing staged cubes")
+      return
+    end
+    pendingCubes("clear_player",pcol)
     if indexOf(G.d.waitlist,pcol) > 0 then
       for i,e in ipairs(G.d.status.waitlist) do
         if e.player_color == pcol then e.player_status = "Set"; break end
       end
       pdata.disk_button = false
-      pdata.undo_button = true
+      pdata.undo_button = false
       pdata.done_button = false
+      pdata.show_stage = false
       pdata.active = false
       updatePlayerBoardUI(pcol)
       updateStatusUI(G.d.status)
@@ -1321,6 +1397,7 @@ function playerUndo(pcol)
         else d.visibility = {} end
         updateOrderButtonUI(g,d)
       end
+      updateStatusUI(G.d.status)
     end
   elseif G.d.phase == "scoring" then
     if indexOf(G.d.waitlist,pcol) == 0 then table.insert(G.d.waitlist,pcol) end
@@ -1349,7 +1426,7 @@ function undo(u)
     o.setPosition(u.snap)
     o.clearButtons()
     Wait.condition(function() o.setLock(true); o.createButton(C.card_button) end, function() return o.resting end)
-    -- if not(contains(G.d.action_cards,u.g)) then table.insert(G.d.action_cards,u.g) end
+    G.d.players[u.pcol].action_card = ""
   elseif u.id == "move_king" then  --WORKING
     debug("undo move king")
     getObjectFromGUID(u.g).setPosition(u.snap)
@@ -1392,7 +1469,6 @@ function undo(u)
     G.obj.regions[u.origin].caballeros[u.color][u.g] = true
   elseif u.id == "ret2provinces" then
     --TODO can this be undone???  only before all secret disks are selected
-
   elseif u.id == "move_grande" then
     debug("undo move grande")
     if contains(G.d.action.pending_cubes,u.g) then pendingCubes("remove",u.g) end
@@ -1402,9 +1478,37 @@ function undo(u)
     for g,r in pairs(G.obj.regions) do r.grandes[o.memo] = (g == u.origin) end
     G.obj.snaps[u.g] = u.snap
   elseif u.id == "castillo" then
+    local castillo = getObjectFromGUID(C.castillo)
+    if indexOf(G.obj.castillo.caballeros[u.color],u.g) > 0 then
+      table.remove(G.obj.castillo.caballeros[u.color],indexOf(G.obj.castillo.caballeros[u.color],u.g))
+    else
+      debug("WARN: no castillo table entry for "..tostring(u.g))
+    end
+    local o = castillo.takeObject({
+      guid=u.g,
+      callback_function = function(o)
+        if u.origin == "court" then
+          returnToCourt(o.memo, u.g)
+        elseif u.snap then
+          o.setPosition(u.snap)
+          G.obj.regions[u.region_guid].caballeros[u.color][u.g] = true
+        end
+      end
+    })
   elseif u.id == "disk" then
   elseif u.id == "scoreboard" then
-  elseif u.id == "score_region" then
+  elseif u.id == "score" then
+    G.d.players[u.pcol].score = G.d.players[u.pcol].score - u.points
+    if G.d.players[u.pcol].score < 0 then
+      debug("WARN: undo score resulted in < 0, set to 0")
+      G.d.players[u.pcol].score = 0
+    end
+    --locate scoring marker
+    local m = getObjectFromGUID(C.score_markers[u.pcol])
+    local pos = getScorePos(u.pcol,G.d.players[u.pcol].score)
+    m.setLock(false)
+    m.setPositionSmooth(pos, false, false)
+    Wait.condition(function() m.setLock(true) end, function() return m.resting end)
   elseif u.id == "restore_bid" then
   elseif u.id == "" then
   else
@@ -1413,163 +1517,370 @@ function undo(u)
 end
 --[[ Run the scoring sequence for all or some regions.
   NOTE: runs runScoring() in a coro to allow for animations, pause for player input etc.
-  regions: list of region numbers to score
-  special: true: this is a special scoring, false: this is a general scoring
+  regions: list of region numbers to score {1,2,3,4,}, default: {1,2,3,4,5,6,7,8,9}
+  special: true: this is a special scoring, false: this is a general scoring; default: false
 ]]
 function startScoring(regions, special)
-  G.d.phase = "scoring"
-  G.d.scoring_special = special or false
-  if regions then G.d.scoring_regions = regions
-  else G.d.scoring_regions = {1,2,3,4,5,6,7,8,9} end
-  startLuaCoroutine(Global, "runScoring")
-end
-function runScoring()
-  if env.trace then log("coroutine runScoring() starting") end
-  local function pause(seconds)
-    if seconds == nil then seconds = 1 end
-    log("starting pause timer for "..tostring(seconds).." seconds")
-    local count = 0; local t = os.time()
-    while count < seconds do
-      if os.time() - t > 1 then t = os.time(); count = count + 1 end
-      coroutine.yield(0)
-    end
-    log("exiting pause timer")
+  -- NOTE: s_<var name> vars are referenced in runScoring() coro
+  local s_special = special or false
+  local s_regions = regions or {1,2,3,4,5,6,7,8,9}
+  local s_castillo = false
+  if contains(s_regions,"castillo") then
+    s_castillo = true
+    table.remove(s_regions,indexOf(s_regions,"castillo"))
   end
-  local skip_castillo = G.d.scoring_special
-  local region_list = G.d.scoring_regions
-  local phase_backup = G.d.phase
-  local status_backup = simpleDeepCopy(G.d.status)
-  local marker = getObjectFromGUID(C.round_marker)
-  if not(skip_castillo) then -- all players select destnation region secretly
-    marker.setPositionSmooth(C.round_scoring_positions[1],false,false)
-    G.d.status = {}
-    G.d.status.info = "General Scoring\nMove Caballeros from Castillo"
-    G.d.status.info = G.d.status.info.."\nSecretly select a destination region"
-    G.d.status.info = G.d.status.info.."\nKing's region -> return to Court!"
-    G.d.status.waitlist = {}
-    G.d.waitlist = {}
-    for i=1,5 do
-      if i <= #G.d.player_order then
-        local pcol = G.d.player_order[i]
-        if #G.obj.castillo.caballeros[pcol] > 0 then
-          table.insert(G.d.status.waitlist,{player_color=pcol,player_status="Waiting"})
-          table.insert(G.d.waitlist, pcol)
-          G.d.players[pcol].active = true
-          G.d.players[pcol].done_button = true
-          G.d.players[pcol].show_disk = true
-          G.d.players[pcol].disk_button = true
-          G.d.players[pcol].allowed_regions = {1,2,3,4,5,6,7,8,9}
-          G.d.players[pcol].selected_region = math.random(1,9)
-          updatePlayerBoardUI(pcol)
-        end
-      end
+  log("Scoring regions:");log(s_regions) --DEBUG
+  function runScoring()
+    if env.trace then log("coroutine runScoring() starting") end
+    -- keep a backup of game state to restore at end (status UI and player buttons)
+    local backup = {}
+    backup.phase = G.d.phase
+    backup.status = simpleDeepCopy(G.d.status)
+    backup.active_player = {}
+    backup.active_player.undo = G.d.players[G.d.active_player].undo_button
+    backup.active_player.done = G.d.players[G.d.active_player].done_button
+    backup.active_player.action_ui = G.d.players[G.d.active_player].action_ui
+    -- clear active player buttons
+    if not(s_special) then G.d.players[G.d.active_player].active = false end
+    G.d.players[G.d.active_player].undo_button = false
+    G.d.players[G.d.active_player].done_button = false
+    G.d.players[G.d.active_player].action_ui = false
+    updatePlayerBoardUI(G.d.active_player)
+    --status data for scoring display
+    local s_info = {
+      show = false,
+      title = "",
+      msg = "",
+      scores = nil,
+      summary = false,
+      button = false,
+    }
+    local summary = {}
+    if s_special then s_info.title = "Special Scoring"
+    else s_info.title = "General Scoring" end
+    for pcol,pdata in pairs(G.d.players) do
+      log(pcol..": "..tostring(pdata.action_ui))
+      if pdata.action_ui then log("set action_ui false for "..pcol); pdata.action_ui = false; updatePlayerBoardUI(pcol) end
     end
-    if #G.d.waitlist > 0 then
-      G.d.status.show = true
-      updateStatusUI(G.d.status)
-      -- pause until waitlist empty
-      while #G.d.waitlist > 0 do coroutine.yield(0) end
-      -- hide player disks & buttons
-      for i,pcol in ipairs(G.d.player_order) do
-        local pdata = G.d.players[pcol]
-        pdata.active = pcol == G.d.active_player
-        pdata.undo_button = false
-        pdata.done_button = false
-        pdata.show_disk = false
-        updatePlayerBoardUI(pcol)
+    local score_castillo = not(s_special) or s_regions --TODO: not needed if fn moved into startScoring()?
+    local region_list = s_regions --TODO: not needed if fn moved into startScoring()?
+    local skip_castillo = true
+    local marker = getObjectFromGUID(C.round_marker)
+    G.d.phase = "scoring"
+    --///////////////////// local functions ////////////////////////
+    local function pause(seconds)
+      if seconds == nil then seconds = 1 end
+      log("starting pause timer for "..tostring(seconds).." seconds")  --DEBUG
+      local count = 0; local t = os.time()
+      while count < seconds do
+        if os.time() - t > 1 then t = os.time(); count = count + 1 end
+        coroutine.yield(0)
       end
-      log("--- all regions selected, now set up scoring UI") --DEBUG
-    else
-      log("--- No player has Caballeros in the Castillo, skipping") --DEBUG
-      skip_castillo = true
+      -- log("exiting pause timer")
     end
-  end
-
-  -- TODO: set up the scoring UI
-
-  if not(skip_castillo) then -- score the Castillo
-    marker.setPositionSmooth(C.round_scoring_positions[2],false,false)
-    log("Scoring the Castillo") --DEBUG
-    --TODO: update scoring UI
-    getObjectFromGUID(C.castillo).highlightOn("Yellow")
-    local scores = scoreRegion("castillo")
-    for p,s in pairs(scores) do
-      log("Player "..tostring(p).." scored "..tostring(s)) --DEBUG
-      if s > 0 then
-        G.d.players[p].score = G.d.players[p].score + s
-        local pos = getScorePos(p,s)
-        getObjectFromGUID(C.score_markers[p]).setPositionSmooth(pos, false, false)
-      end
-    end
-    log("----")
-    pause(3)
-    getObjectFromGUID(C.castillo).highlightOff()
-  end
-
-  if not(skip_castillo) then -- move cubes from Castillo to regions (or Court)
-    marker.setPositionSmooth(C.round_scoring_positions[3],false,false)
-    --TODO: update scoring UI
-    G.d.waitlist = {}
-    --TODO: setup waitlist UI
-    for p,list in pairs(G.obj.castillo.caballeros) do
-      if #list > 0 then
-        local board = getObjectFromGUID(C.player_boards[p])
-        local pdata = G.d.players[p]
-        if G.obj.regions[pdata.selected_region].king then
-          for _,g in ipairs(list) do
-            --TODO return cubes to player court
+    local function updateUI(info)
+      if info.show then
+        UI_setAttribute("scoring_title_txt","text",info.title)
+        UI_setAttribute("scoring_msg_txt","text",info.msg)
+        local h = 160
+        if info.scores then
+          h = h + 120
+          for i=1,3 do
+            for _,c in ipairs({"Blue","Red","Green","Purple","Yellow"}) do UI_setAttribute("scoring_"..tostring(i).."_"..c,"active",false) end
+            if #info.scores[i] > 0 then
+              UI_setAttribute("scoring_"..tostring(i).."_pts_txt","text",tostring(info.scores[i][1].points.." pts"))
+              for _,e in ipairs(info.scores[i]) do UI_setAttribute("scoring_"..tostring(i).."_"..e.player,"active",true) end
+            else UI_setAttribute("scoring_"..tostring(i).."_pts_txt","text","0 pts") end
+            UI_setAttribute("scoring_"..tostring(i).."_row","active",true)
           end
         else
-          for _,g in ipairs(list) do
-            --TODO: place on player's playerboard
-            -- add cubes to pending_cubes list
-            -- add cube to player pending list (use in done button to remove from pending_cubes)
+          for i=1,3 do UI_setAttribute("scoring_"..tostring(i).."_row","active",false) end
+        end
+        if info.summary then
+          local i = 0; h = h + 35
+          for i=1,5 do UI_setAttribute("scoring_summary_"..tostring(i).."_row","active",false) end
+          for p,s in pairs(summary) do
+            i = i + 1; h = h + 30
+            UI_setAttribute("scoring_summary_"..tostring(i).."_pnl","color",p)
+            UI_setAttribute("scoring_summary_"..tostring(i).."_txt","text",p)
+            UI_setAttribute("scoring_summary_score_"..tostring(i).."_txt","text",tostring(s))
+            UI_setAttribute("scoring_summary_"..tostring(i).."_row","active",true)
           end
-          -- add player to waitlist
-          table.insert(G.d.status.waitlist,{player_color=p,player_status="Waiting"})
-          table.insert(G.d.waitlist, p)
-          G.d.players[pcol].active = true
-          G.d.players[pcol].undo_button = false
-          G.d.players[pcol].done_button = true
+          for _,p in ipairs(G.d.player_order) do
+            if not(summary[p]) then
+              i = i + 1; h = h + 30
+              UI_setAttribute("scoring_summary_"..tostring(i).."_pnl","color",p)
+              UI_setAttribute("scoring_summary_"..tostring(i).."_txt","text",p)
+              UI_setAttribute("scoring_summary_score_"..tostring(i).."_txt","text","0")
+              UI_setAttribute("scoring_summary_"..tostring(i).."_row","active",true)
+            end
+          end
+          UI_setAttribute("scoring_summary_row","active",true)
+        else UI_setAttribute("scoring_summary_row","active",false) end
+        if info.button then UI_setAttribute("scoring_ack_row","active",true); h = h + 40
+        else UI_setAttribute("scoring_ack_row","active",false) end
+        UI_setAttribute("scoring_pnl","height",tostring(h))
+        UI_setAttribute("scoring_pnl","active",true)
+      else UI_setAttribute("scoring_pnl","active",false) end
+    end
+    local function process(scores)
+      s_info.scores = {{},{},{},}
+      for i,e in ipairs(scores) do
+        if #e == 1 then
+          local d = e[1]
+          local s = "#"..tostring(i)..": "..d.player.." scores "..tostring(d.score)
+          if i == 1 then
+            if d.grande or d.king then s = s.." w/bonus:" end
+            if d.grande then s = s.." Grande" end
+            if d.king then s = s.." King" end
+          end
+          log(s) --DEBUG
+          G.d.players[d.player].score = G.d.players[d.player].score + d.score
+          if not(summary[d.player]) then summary[d.player] = d.score
+          else summary[d.player] = summary[d.player] + d.score end
+          table.insert(s_info.scores[i],{player=d.player,points=d.score})
+          if s_special then
+            table.insert(G.d.action.undo.special, {id="score",pcol=d.player,points=d.score})
+          end
+          local pos = getScorePos(d.player,G.d.players[d.player].score)
+          local m = getObjectFromGUID(C.score_markers[d.player])
+          m.setLock(false)
+          m.setPositionSmooth(pos, false, false)
+          Wait.condition(function() m.setLock(true) end, function() return m.resting end)
+        else
+          local s = "Players"
+          for _,d in ipairs(e) do
+            log("#"..tostring(i)..": "..d.player.." tied,  scores "..tostring(d.score)) --DEBUG
+            G.d.players[d.player].score = G.d.players[d.player].score + d.score
+            if not(summary[d.player]) then summary[d.player] = d.score
+            else summary[d.player] = summary[d.player] + d.score end
+            table.insert(s_info.scores[1],{player=d.player,points=d.score})
+            if s_special then
+              table.insert(G.d.action.undo.special, {id="score",pcol=d.player,points=d.score})
+            end
+            local pos = getScorePos(d.player,G.d.players[d.player].score)
+            local m = getObjectFromGUID(C.score_markers[d.player])
+            m.setLock(false)
+            m.setPositionSmooth(pos, false, false)
+            Wait.condition(function() m.setLock(true) end, function() return m.resting end)
+          end
         end
       end
     end
-    if #G.d.waitlist == 0 then
-      --TODO: some kind of UI update here?
-      log("----") --DEBUG
-      pause(3) --TESTING
-    end
-  end
-
-  for _,i in ipairs(region_list) do -- sequentially score regions in the list
-    log("Score region "..tostring(i)) --DEBUG
-    --TODO: update scoring UI
-    marker.setPositionSmooth(C.round_scoring_positions[3+i],false,false)
-    getObjectFromGUID(C.region_guids[i]).highlightOn("Yellow")
-    local scores = scoreRegion(C.region_guids[i])
-    for p,s in pairs(scores) do
-      log("Player "..tostring(p).." scored "..tostring(s)) --DEBUG
-      --TODO: update scoring UI
-      if s > 0 then
-        G.d.players[p].score = G.d.players[p].score + s
-        local pos = getScorePos(p,s)
-        getObjectFromGUID(C.score_markers[p]).setPositionSmooth(pos, false, false)
+    -- /////////////////// Secret region selection ///////////////////
+    if not(s_special) then --
+      --see if Castillo is empty
+      for _,l in pairs(G.obj.castillo.caballeros) do
+        if #l > 0 then skip_castillo = false; break end
+      end
+      log("skip castillo is "..tostring(skip_castillo))
+      if skip_castillo then
+        s_info.msg = "No Caballeros in the Castillo to distribute or score"
+        s_info.show = true
+        updateUI(s_info)
+      else
+        -- all players select destnation region secretly
+        s_info.msg = "Players with Caballeros in \nCastillo secretly select a region"
+        s_info.show = true
+        updateUI(s_info)
+        marker.setLock(false)
+        marker.setPositionSmooth(C.round_scoring_positions[1],false,false)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+        G.d.status = {}
+        G.d.status.info = "Secretly select a destination region\nKing's region -> return to Court!"
+        G.d.status.waitlist = {}
+        G.d.waitlist = {}
+        for i=1,5 do
+          if i <= #G.d.player_order then
+            local pcol = G.d.player_order[i]
+            if #G.obj.castillo.caballeros[pcol] > 0 then
+              table.insert(G.d.status.waitlist,{player_color=pcol,player_status="Waiting"})
+              table.insert(G.d.waitlist, pcol)
+              G.d.players[pcol].active = true
+              G.d.players[pcol].done_button = true
+              G.d.players[pcol].undo_button = false
+              G.d.players[pcol].show_disk = true
+              G.d.players[pcol].show_stage = false
+              G.d.players[pcol].disk_button = true
+              G.d.players[pcol].allowed_regions = {1,2,3,4,5,6,7,8,9}
+              G.d.players[pcol].selected_region = math.random(1,9)
+              updatePlayerBoardUI(pcol)
+            end
+          end
+        end
+        if #G.d.waitlist > 0 then
+          G.d.status.show = true
+          updateStatusUI(G.d.status)
+          while #G.d.waitlist > 0 do coroutine.yield(0) end -- pause until waitlist empty
+          for i,pcol in ipairs(G.d.player_order) do
+            local pdata = G.d.players[pcol]
+            pdata.active = pcol == G.d.active_player
+            pdata.undo_button = false
+            pdata.done_button = false
+            pdata.show_disk = false
+            updatePlayerBoardUI(pcol)
+          end
+        end
       end
     end
-    log("----")
-    pause(3)
-    getObjectFromGUID(C.region_guids[i]).highlightOff()
+    -- /////////////////// score the Castillo ////////////////////////
+    if score_castillo and not(skip_castillo) then
+      if not(s_special) then
+        marker.setLock(false)
+        marker.setPositionSmooth(C.round_scoring_positions[2],false,false)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+      end
+      s_info.msg = "Score the Castillo"
+      s_info.scores = {{},{},{},}
+      s_info.summary = true
+      s_info.show = true
+      updateUI(s_info)
+      getObjectFromGUID(C.castillo).highlightOn("Yellow")
+      local scores = scoreRegion("castillo")
+      if #scores > 0 then process(scores) end
+      pause()
+      updateUI(s_info)
+      getObjectFromGUID(C.castillo).highlightOff()
+      pause(2)
+    end
+    -- /////////// Place cubes from Castillo in regions ///////////////
+    if not(s_special) then
+      local placement = false
+      for _,list in pairs(G.obj.castillo.caballeros) do if #list > 0 then placement = true; break end end
+      if placement then
+        s_info.msg = "Move Caballeros to regions\nWaiting on players to place."
+        s_info.scores = nil
+        s_info.show = true
+        updateUI(s_info)
+        marker.setLock(false)
+        marker.setPositionSmooth(C.round_scoring_positions[3],false,false)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+        G.d.status.info = "General Scoring\nPlace staged Caballeros"
+        G.d.status.info = G.d.status.info.."\nPress Done when finished"
+        G.d.status.waitlist = {}
+        G.d.waitlist = {}
+        local castillo = getObjectFromGUID(C.castillo)
+        for p,list in pairs(G.obj.castillo.caballeros) do
+          if #list > 0 then
+            local board = getObjectFromGUID(C.player_boards[p])
+            local pdata = G.d.players[p]
+            pdata.staged_cubes = {}
+            if G.obj.regions[C.region_guids[pdata.selected_region]].king then
+              --return cubes to player court (replicating returnToCourt() here because of takeObject())
+              cleanupCourt(p)
+              for _,g in ipairs(list) do
+                local index = #G.d.players[p].court + 1
+                table.insert(G.d.players[p].court, g)
+                castillo.takeObject({
+                  guid=g,
+                  position=board.positionToWorld(C.court_pos_l[index]),
+                  rotation={0,0,0},
+                  smooth=true,
+                  callback_function = function(o)
+                    G.obj.snaps[g] = board.positionToWorld(C.court_pos_l[index])
+                    o.setLock(env.lock_player_cubes)
+                  end
+                })
+              end
+            else
+              -- add player to waitlist
+              table.insert(G.d.status.waitlist,{player_color=p,player_status="Waiting"})
+              table.insert(G.d.waitlist, p)
+              pdata.active = true
+              pdata.show_stage = true
+              pdata.show_disk = false
+              pdata.undo_button = false
+              pdata.done_button = false
+              updatePlayerBoardUI(p)
+              -- put cubes in player staging area
+              for i,g in ipairs(list) do
+                castillo.takeObject({
+                  guid=g,
+                  position=board.positionToWorld(C.stage_pos_l[i]),
+                  rotation={0,0,0},
+                  smooth=true, --set false if problems with collisions
+                  callback_function = function(o)
+                    G.obj.snaps[g] = p
+                    pendingCubes("add",g)
+                    table.insert(pdata.staged_cubes,g)
+                  end
+                })
+              end
+            end
+            G.obj.castillo.caballeros[p] = {}
+            updateCastilloUI()
+            pause()
+          end
+        end
+        G.d.status.show = true
+        updateStatusUI(G.d.status)
+        while #G.d.waitlist > 0 do coroutine.yield(0) end -- pause until waitlist empty
+        --TODO: any cleanup??? reset anything???
+      end
+    end
+    G.d.status.show = false
+    updateStatusUI(G.d.status)
+    -- ///////// sequentially score regions in the list ///////////////
+    for _,i in ipairs(region_list) do --
+      if not(s_special) then
+        marker.setLock(false)
+        marker.setPositionSmooth(C.round_scoring_positions[3+i],false,false)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+      end
+      getObjectFromGUID(C.region_guids[i]).highlightOn("Yellow")
+      local scores = scoreRegion(C.region_guids[i])
+      s_info.msg = "Score region "..tostring(i)..": "..G.obj.regions[C.region_guids[i]].name
+      s_info.scores = {{},{},{},}
+      s_info.summary = true
+      s_info.show = true
+      updateUI(s_info)
+      pause()
+      if #scores == 0 then
+        s_info.msg = s_info.msg.."\nNo Caballeros in the region to score"
+        updateUI(s_info)
+        pause(2)
+      else
+        process(scores)
+        updateUI(s_info)
+        pause(2)
+      end
+      getObjectFromGUID(C.region_guids[i]).highlightOff()
+    end
+    s_info.msg = "Scoring Finished\n\nFinal Summary"
+    s_info.scores = nil
+    s_info.summary = true
+    s_info.button = true
+    s_info.show = true
+    updateUI(s_info)
+    log("Final scoring summary:"); for p,s in pairs(summary) do log(p.." scored "..tostring(s).." points") end --DEBUG
+    -- ///////// wait for players to review scoring results ///////////////
+    G.d.status = {}
+    G.d.status.info = "Review scoring results"
+    G.d.status.waitlist = {}
+    G.d.waitlist = {"any"} -- pause until somebody clicks close --TODO: require all players to click?
+    G.d.status.show = true
+    updateStatusUI(G.d.status)
+    while #G.d.waitlist > 0 do coroutine.yield(0) end
+    UI_setAttribute("scoring_pnl","active",false)
+    -- ///////////// return to game state prior to scoring ////////////////
+    G.d.phase = backup.phase
+    G.d.status = backup.status
+    updateStatusUI(G.d.status)
+    if not(skip_marker) then
+      marker.setLock(false)
+      marker.setPositionSmooth(C.round_marker_positions[G.d.round],false,false)
+      Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+    end
+    --restore active player's action UIs
+    G.d.players[G.d.active_player].active = true
+    G.d.players[G.d.active_player].undo_button = backup.active_player.undo
+    G.d.players[G.d.active_player].done_button = backup.active_player.done
+    G.d.players[G.d.active_player].action_ui = backup.active_player.action_ui
+    updatePlayerBoardUI(G.d.active_player)
+    log("--- exiting runScoring() coroutine") --DEBUG
+    return(1)
   end
-
-  --TODO: wait on players to review and ack scoring results?
-
-  --return to game state prior to scoring
-  G.d.phase = phase_backup
-  G.d.status = status_backup
-  updateStatusUI(G.d.status)
-  marker.setPositionSmooth(C.round_marker_positions[G.d.round],false,false)
-  log("--- exiting runScoring() coroutine") --DEBUG
-  return(1)
+  startLuaCoroutine(Global, "runScoring")
 end
 
 -- //////////// User interaction handlers //////////////////
@@ -1587,6 +1898,7 @@ end
 ]]
 --TODO: handle playing delayed action from card in hand
 function onObjectDrop(pcol, obj)
+  if env.ignore_drop then return end --DEVELOPMENT
   if not(obj.hasTag("Caballero") or obj.hasTag("Grande") or obj.hasTag("King") or obj.hasTag("ScoreBoard")) then return end
   local region,board,castillo = nil,nil,nil
   local pos = Player[pcol].getPointerPosition();pos.y = 0
@@ -1659,9 +1971,11 @@ end
 function cardClick(card, pcol, alt)
   if env.trace then log("cardClick() "..pcol..", "..card.getGUID()) end
   if pcol ~= G.d.active_player then return end
+  if G.d.phase ~= "actions" then log("cardClick() ignore card click in non-actions phase"); return end
   local pdata = G.d.players[pcol]
   local cinfo = cards[card.getGUID()]
   assert(cinfo, "cardClick() could not locate card info")
+  if pdata.action_card ~= "" then log("cardClick() ignore clicks when another card is selected"); return end
   local a = G.d.action
   a.description = cinfo.description
   a.stage = "main"
@@ -1682,6 +1996,7 @@ function cardClick(card, pcol, alt)
   local board = getObjectFromGUID(C.player_boards[pcol])
   card.setPosition(board.positionToWorld(C.card_pos_l))
   Wait.condition(function() card.setLock(true) end, function() return card.resting end)
+  pdata.action_card = card.getGUID()
   pdata.undo_button = true
   pdata.done_button = true
   pdata.action_ui = true
@@ -1695,6 +2010,16 @@ function actionClick(player, button, id)
   if player.color ~= board_color then return end
   local opt= Split(id,"_")[3]
   processAction(player.color, opt)
+end
+--[[ TODO: Handler for clicks on the scoring dialog Close button.
+    Hide the scoring dialog from the player.
+--]]
+function scoringClick(player, button, id)
+  if env.trace then log("scoringClick() "..player.color..", "..id) end
+  --TODO: manage visibility
+  --TODO: remove player from waitlist
+  --just any player for now will close it and continue
+  G.d.waitlist = {}
 end
 --[[ Handler for clicks on the secret disk.  Rotate disk to next/previous
     region based on mouse click and set accordingly in player data.
@@ -1780,7 +2105,7 @@ function updateStatusUI(status)
         UI_setAttribute("wait_p"..tostring(i).."_row","active",false)
       end
     end
-    UI_setAttribute("player_wait_pnl","height",tostring(140+(50*#status.waitlist)))
+    UI_setAttribute("player_wait_pnl","height",tostring(120+(40*#status.waitlist)))
     UI_setAttribute("player_wait_pnl","active",true)
   else
     UI_setAttribute("player_wait_pnl","active",false)
@@ -1824,6 +2149,12 @@ function updatePlayerBoardUI(pcol)
     object_UI_setClass(board, "pointer","diskButton")
   else
     object_UI_setClass(board, "pointer","") --BUG: doesn't work, workaround: ignore clicks in diskClick()
+  end
+  if pdata.show_stage then
+    object_UI_setAttribute(board,"stage_title_txt","text","Move to "..G.obj.regions[C.region_guids[pdata.selected_region]].name)
+    object_UI_setAttribute(board,"stage_pnl","active",true)
+  else
+    object_UI_setAttribute(board,"stage_pnl","active",false)
   end
   if pdata.action_ui then
     local a = G.d.action
@@ -1987,6 +2318,7 @@ function returnToCourt(pcol, guid)
   local index = #G.d.players[pcol].court + 1
   if index < 30 then
     o.setPosition(board.positionToWorld(C.court_pos_l[index]))
+    o.setRotation({0,0,0})
     table.insert(G.d.players[pcol].court, guid)
     G.obj.snaps[guid] = board.positionToWorld(C.court_pos_l[index])
   else
@@ -2089,8 +2421,8 @@ end
 --[[ Manage cubes in the action pending_cubes queue.
   See: flashCubes()
   Required parameters:
-  action: "add" or "remvoe"
-  guid: guid of cube in pending_cubes queue
+  action: "add"|"remvoe"|"clear"|"clear_player"
+  guid: guid of cube in pending_cubes queue (or player color in case of action == clear_player)
 ]]
 function pendingCubes(action, guid)
   if env.trace then log("pendingCube() "..tostring(action)..", "..tostring(guid)) end
@@ -2112,6 +2444,13 @@ function pendingCubes(action, guid)
       local o = getObjectFromGUID(g)
       if o then o.setColorTint(Color[o.memo]) end
     end
+  elseif action == "clear_player" then
+    local temp = {}
+    for _,g in ipairs(G.d.action.pending_cubes) do
+      local o = getObjectFromGUID(g)
+      if o and o.memo == guid then table.insert(temp,g) end
+    end
+    for _,g in ipairs(temp) do pendingCubes("remove", g) end
   else log("WARN: pendingCube() unknown action "..tostring(action))  --DEBUG
   end
 end
@@ -2130,8 +2469,9 @@ end
 ]]
 function getScorePos(color, val)
   if env.trace then log("getScorePos() "..tostring(color)..", "..tostring(val)) end
-  assert(val > 0 and val <= 150, "getScorePos() score value "..tostring(val).." must be between 1 and 150")
-  assert(contains({"Brown","Red","Green","Purple","Yellow"},color),"getScorePos() invalid color "..tostring(color))
+  assert(val >= 0 and val <= 150, "getScorePos() score value "..tostring(val).." must be between 0 and 150")
+  assert(contains({"Blue","Red","Green","Purple","Yellow"},color),"getScorePos() invalid color "..tostring(color))
+  if val == 0 then return C.score_marker_start_pos[color] end
   if val > 50 and val <= 100 then val = val - 50
   elseif val > 100 and val <= 150 then val = val - 100
   end
@@ -2150,6 +2490,9 @@ function getScorePos(color, val)
   return Vector(pos) - Vector(C.marker_offsets[color])
 end
 --[[ Return score for a region.  Returns a table of Color:Score.
+  if 3 players, only return first two scoring levels.
+  if 2 players, only return the first scoring level.
+  All tied players drop to next lower level of score.
 ]]
 function scoreRegion(region_guid)
   if env.trace then log("scoreRegion() "..tostring(region_guid)) end
@@ -2179,39 +2522,37 @@ function scoreRegion(region_guid)
   --if 3 players, only use first two scoring levels.
   --if 2 players, only use the first scoring level.
   --ties use next lower level of score.
-  local result,index,max = {},1,3
+  local result,index,max,grande,king = {},1,3,false,false
   if #G.d.player_order == 3 then max = 2
   elseif #G.d.player_order == 2 then max = 1 end
-  for _,p in ipairs(G.d.player_order) do result[p] = 0 end
   while index <= max do
     if not(rank[index]) then break end
     if sizeOf(rank[index]) == 1 then
       local score = region.scoring[index]
-      if rank[index][1].val == 0 then score = 0 end
-      result[rank[index][1].player] = score
+      if rank[index][1].val > 0 then
+        if index == 1 then
+          --determine Home region and/or King bonus
+          if region.grandes[rank[1][1].player] then  score = score + 2; grande = true end
+          if region.king then score = score + 2; king = true end
+        end
+        local e = {player=rank[index][1].player,caballeros=rank[index][1].val,score=score,grande=grande,king=king,}
+        table.insert(result,{e})
+      end
       index = index + 1
-    else --a tie
+    else --there is a tie at this rank index
       if index+1 <= max then
+        local new = {}
         for _,e in ipairs(rank[index]) do
           local score = region.scoring[index+1]
-          if e.val == 0 then score = 0 end
-          result[e.player] = score
+          if e.val > 0 then
+            table.insert(new,{player=e.player,caballeros=e.val,score=score,})
+          end
         end
+        if #new > 0 then table.insert(result,new) end
       end
       index = index + 2 --skip a level
     end
   end
-  --determine grande bonus
-  if #rank[1] == 1 and region.grandes[rank[1][1].player] then
-    log("Player "..rank[1][1].player.." has the majority and recieves the Grande bonus") --DEBUG
-    result[rank[1][1].player] = result[rank[1][1].player] + 2
-  end
-  --determine king bonus
-  if #rank[1] == 1 and region.king then
-    log("Player "..rank[1][1].player.." has the majority and recieves the King bonus") --DEBUG
-    result[rank[1][1].player] = result[rank[1][1].player] + 2
-  end
-  -- log("Scoring result:");log(result) --DEBUG
   return result
 end
 --[[ Force reload of all UI elements when somethign isn't showing.
@@ -2239,15 +2580,36 @@ end
 
 --/////////////// DEVELOPMENT STUFFS //////////////////
 
--- function getLocalPos()
---   local board = getObjectFromGUID(C.player_boards["Brown"])
---   local n = 0
---   local s = ""
---   for _,o in ipairs(Player["Brown"].getSelectedObjects()) do
---     n=n+1
---     local l = board.positionToLocal(o.getPosition())
---     s=s.."{"..string.format("%.4f", l.x)..","..string.format("%.4f", l.y)..","..string.format("%.4f", l.x).."},"
---     if n==5 then s=s.."\n"; n=0 end
---   end
---   Notes.setNotes(s)
--- end
+function getLocalPos(pcol)
+  assert(pcol,"getLocalPos(color): Parameter color is mandatory")
+  local board = getObjectFromGUID(C.player_boards[pcol])
+  local n = 0
+  local s = ""
+  for _,o in ipairs(Player[pcol].getSelectedObjects()) do
+    n=n+1
+    local l = board.positionToLocal(o.getPosition())
+    s=s.."{"..string.format("%.4f", l.x)..","..string.format("%.4f", l.y)..","..string.format("%.4f", l.x).."},"
+    if n==5 then s=s.."\n"; n=0 end
+  end
+  Notes.setNotes(s)
+end
+
+function w2l(list, guid, format)
+  local format = format or false
+  local o = getObjectFromGUID(guid)
+  local s = ""
+  local n = 0
+  for _,e in ipairs(list) do
+    n=n+1
+    local l = o.positionToLocal(e)
+    if format then
+      s=s.."{"..string.format("%.5f", l.x)..","
+      s=s..string.format("%.5f", l.y)..","
+      s=s..string.format("%.5f", l.z).."},"
+    else
+      s=s.."{"..tostring(l.x)..","..tostring(l.y)..","..tostring(l.z).."},"
+    end
+    if n==5 then s=s.."\n"; n=0 end
+  end
+  Notes.setNotes(s)
+end

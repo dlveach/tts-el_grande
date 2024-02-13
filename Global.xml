@@ -11,7 +11,7 @@
 </Defaults>
 
 <!-- Start Panel -->
-<Panel id="start_pnl" active="false" class="Draggable Light Base" height="400" width="380" padding="10">
+<Panel id="start_pnl" active="false" class="Draggable Light Base" height="400" width="380" padding="5">
   <Panel class="Dark Viewport">
     <TableLayout>
       <Row preferredHeight="60">
@@ -43,9 +43,8 @@
     </TableLayout>
   </Panel>
 </Panel>
-
 <!-- Player wait panel -->
-<Panel id="player_wait_pnl" active="false" class="Draggable Light Base" width="280" height="380" padding="10" rectAlignment="UpperLeft" offsetXY="40 -40">
+<Panel id="player_wait_pnl" active="false" class="Draggable Light Base" width="280" height="380" padding="5" rectAlignment="UpperLeft" offsetXY="60 -40">
   <Panel class="Dark Viewport">
     <TableLayout columnWidths="140 0">
       <Row preferredHeight="100">
@@ -57,54 +56,158 @@
           </Text>
         </Cell>
       </Row>
-      <Row id="wait_p1_row" preferredHeight="50">
-        <Cell padding="10 5 5 5">
+      <Row id="wait_p1_row" preferredHeight="40">
+        <Cell padding="25 5 5 5">
           <Panel id="wait_p1_pnl" class="base" color="Yellow">
-            <Text id="wait_p1_txt" class="L" text="Yellow"/>
+            <Text id="wait_p1_txt" class="M" text="Yellow"/>
           </Panel>
         </Cell>
         <Cell>
-          <Text id="wait_p1_status_txt" class="L" text="Waiting"/>
+          <Text id="wait_p1_status_txt" class="M" text="Waiting"/>
         </Cell>
       </Row>
-      <Row id="wait_p2_row" preferredHeight="50">
-        <Cell padding="10 5 5 5">
+      <Row id="wait_p2_row" preferredHeight="40">
+        <Cell padding="25 5 5 5">
           <Panel id="wait_p2_pnl" class="base" color="Purple">
-            <Text id="wait_p2_txt" class="L" text="Purple"/>
+            <Text id="wait_p2_txt" class="M" text="Purple"/>
           </Panel>
         </Cell>
         <Cell>
-          <Text id="wait_p2_status_txt" class="L" text="Waiting"/>
+          <Text id="wait_p2_status_txt" class="M" text="Waiting"/>
         </Cell>
       </Row>
-      <Row id="wait_p3_row" preferredHeight="50">
-        <Cell padding="10 5 5 5">
+      <Row id="wait_p3_row" preferredHeight="40">
+        <Cell padding="25 5 5 5">
           <Panel id="wait_p3_pnl" class="base" color="Green">
-            <Text id="wait_p3_txt" class="L" text="Green"/>
+            <Text id="wait_p3_txt" class="M" text="Green"/>
           </Panel>
         </Cell>
         <Cell>
-          <Text id="wait_p3_status_txt" class="L" text="Waiting"/>
+          <Text id="wait_p3_status_txt" class="M" text="Waiting"/>
         </Cell>
       </Row>
-      <Row id="wait_p4_row" preferredHeight="50">
-        <Cell padding="10 5 5 5">
+      <Row id="wait_p4_row" preferredHeight="40">
+        <Cell padding="25 5 5 5">
           <Panel id="wait_p4_pnl" class="base" color="Red">
-            <Text id="wait_p4_txt" class="L" text="Red"/>
+            <Text id="wait_p4_txt" class="M" text="Red"/>
           </Panel>
         </Cell>
         <Cell>
-          <Text id="wait_p4_status_txt" class="L" text="Waiting"/>
+          <Text id="wait_p4_status_txt" class="M" text="Waiting"/>
         </Cell>
       </Row>
-      <Row id="wait_p5_row" preferredHeight="50">
-        <Cell padding="10 5 5 5">
-          <Panel id="wait_p5_pnl" class="base" color="Brown">
-            <Text id="wait_p5_txt" class="L" text="Brown"/>
+      <Row id="wait_p5_row" preferredHeight="40">
+        <Cell padding="25 5 5 5">
+          <Panel id="wait_p5_pnl" class="base" color="Blue">
+            <Text id="wait_p5_txt" class="M" text="Blue"/>
           </Panel>
         </Cell>
         <Cell>
-          <Text id="wait_p5_status_txt" class="L" text="Waiting"/>
+          <Text id="wait_p5_status_txt" class="M" text="Waiting"/>
+        </Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+<!-- Scoring panel -->
+<Panel id="scoring_pnl" active="false" class="Draggable Light Base" width="280" height="515" padding="5" rectAlignment="UpperRight" offsetXY="-40 -80">
+  <Panel class="Dark Viewport" padding="15 15 0 0">
+    <TableLayout columnWidths="50 50 140">
+      <Row preferredHeight="40">
+        <Cell columnSpan="3" padding="5"><Text id="scoring_title_txt" class="L LBrown" text="General Scoring"/></Cell>
+      </Row>
+      <Row preferredHeight="100">
+        <Cell columnSpan="3" padding="5">
+          <Text id="scoring_msg_txt" class="M LBrown">
+            line 1
+            line 2
+            line 3
+          </Text>
+        </Cell>
+      </Row>
+      <Row id="scoring_1_row" preferredHeight="40">
+        <Cell><Text class="M Gray" text="1st:"/></Cell>
+        <Cell><Text id="scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
+        <Cell padding="10 15 5 5">
+          <HorizontalLayout>
+            <Panel><Panel id="scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+            <Panel><Panel id="scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+            <Panel><Panel id="scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+            <Panel><Panel id="scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+            <Panel><Panel id="scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+          </HorizontalLayout>
+        </Cell>
+      </Row>
+      <Row id="scoring_2_row" preferredHeight="40">
+        <Cell><Text class="M Gray" text="2nd:"/></Cell>
+        <Cell><Text id="scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
+        <Cell padding="10 15 5 5">
+          <HorizontalLayout>
+            <Panel><Panel id="scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+            <Panel><Panel id="scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+            <Panel><Panel id="scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+            <Panel><Panel id="scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+            <Panel><Panel id="scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+          </HorizontalLayout>
+        </Cell>
+      </Row>
+      <Row id="scoring_3_row" preferredHeight="40">
+        <Cell><Text class="M Gray" text="3rd:"/></Cell>
+        <Cell><Text id="scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
+        <Cell padding="10 15 5 5">
+          <HorizontalLayout>
+            <Panel><Panel id="scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+            <Panel><Panel id="scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+            <Panel><Panel id="scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+            <Panel><Panel id="scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+            <Panel><Panel id="scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+          </HorizontalLayout>
+        </Cell>
+      </Row>
+      <Row id="scoring_summary_row" preferredHeight="185">
+        <Cell columnSpan="3" padding="25 25 10 0">
+          <TableLayout columnWidths="0 0">
+            <Row preferredHeight="25">
+              <Cell columnSpan="2" padding="0 0 0 0">
+                <Panel class="Light Title"><Text id="scoring_summary_txt" class="M LGray" text="Running Totals"/></Panel>
+              </Cell>
+            </Row>
+            <Row id="scoring_summary_1_row" preferredHeight="30" active="true">
+              <Cell padding="10 0 5 0">
+                <Panel id="scoring_summary_1_pnl" class="base" color="Gray"><Text id="scoring_summary_1_txt" class="M" text="Gray"/></Panel>
+              </Cell>
+              <Cell padding="0 0 5 0"><Text id="scoring_summary_score_1_txt" class="M" text="0"/></Cell>
+            </Row>
+            <Row id="scoring_summary_2_row" preferredHeight="30" active="true">
+              <Cell padding="10 0 5 0">
+                <Panel id="scoring_summary_2_pnl" class="base" color="Gray"><Text id="scoring_summary_2_txt" class="M" text="Gray"/></Panel>
+              </Cell>
+              <Cell padding="0 0 5 0"><Text id="scoring_summary_score_2_txt" class="M" text="0"/></Cell>
+            </Row>
+            <Row id="scoring_summary_3_row" preferredHeight="30" active="true">
+              <Cell padding="10 0 5 0">
+                <Panel id="scoring_summary_3_pnl" class="base" color="Gray"><Text id="scoring_summary_3_txt" class="M" text="Gray"/></Panel>
+              </Cell>
+              <Cell padding="0 0 5 0"><Text id="scoring_summary_score_3_txt" class="M" text="0"/></Cell>
+            </Row>
+            <Row id="scoring_summary_4_row" preferredHeight="30" active="true">
+              <Cell padding="10 0 5 0">
+                <Panel id="scoring_summary_4_pnl" class="base" color="Gray"><Text id="scoring_summary_4_txt" class="M" text="Gray"/></Panel>
+              </Cell>
+              <Cell padding="0 0 5 0"><Text id="scoring_summary_score_4_txt" class="M" text="0"/></Cell>
+            </Row>
+            <Row id="scoring_summary_5_row" preferredHeight="30" active="true">
+              <Cell padding="10 0 5 0">
+                <Panel id="scoring_summary_5_pnl" class="base" color="Gray"><Text id="scoring_summary_5_txt" class="M" text="Gray"/></Panel>
+              </Cell>
+              <Cell padding="0 0 5 0"><Text id="scoring_summary_score_5_txt" class="M" text="0"/></Cell>
+            </Row>
+          </TableLayout>
+        </Cell>
+      </Row>
+      <Row id="scoring_ack_row" active="false" preferredHeight="40">
+        <Cell padding="60 60 10 0" columnSpan="3">
+          <Button id="scoring_ack" fontSize="14" text="Close" onClick="scoringClick"/>
         </Cell>
       </Row>
     </TableLayout>

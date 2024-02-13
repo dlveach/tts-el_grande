@@ -8,10 +8,9 @@
   <Panel class="Caballero" active="false" />
   <Panel class="Grande" active="false" />
   <Text color="White" />
-  <Text class="Title" color="rgb(0.9,0.9,0)" />
 </Defaults>
 
-<Panel id="regions" class="Light Base" active="false" width="1820" height="260" position="0 -150 0" rotation="0 0 180" padding="10" scale="0.25 0.25">
+<Panel id="regions" class="Light Base" active="false" width="1820" height="260" position="0 -150 0" rotation="0 0 180" padding="5" scale="0.25 0.25">
   <Panel class="Dark Viewport">
     <TableLayout columnWidths="120 0 0 0 0 0 0 0 0 0">
       <Row preferredHeight="40">
@@ -44,63 +43,63 @@
       <Row preferredHeight="48"> <!-- Caballeros Row -->
         <Cell><Text class="M LGray" text="Caballeros"/></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R1_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R1_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R1_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R1_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R1_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R1_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R1_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R1_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R1_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R1_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R1_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R1_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R2_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R2_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R2_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R2_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R2_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R2_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R2_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R2_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R2_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R2_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R2_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R2_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R3_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R3_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R3_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R3_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R3_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R3_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R3_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R3_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R3_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R3_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R3_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R3_C_txt" class="M" text="0"/></Panel></Cell>
                 </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R4_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R4_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R4_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R4_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R4_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R4_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R4_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R4_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R4_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R4_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R4_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R4_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R5_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R5_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R5_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R5_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R5_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R5_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R5_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R5_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R5_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R5_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R5_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R5_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R6_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R6_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R6_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R6_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R6_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R6_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R6_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R6_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R6_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R6_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R6_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R6_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R7_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R7_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R7_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R7_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R7_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R7_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R7_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R7_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R7_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R7_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R7_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R7_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R8_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R8_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R8_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R8_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R8_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R8_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R8_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R8_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R8_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R8_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Yellow_R8_C_pnl" class="Base Caballero" color="Yellow"><Text id="Yellow_R8_C_txt" class="M" text="0"/></Panel></Cell>
             </Row></TableLayout></Cell>
         <Cell padding="10 10 5 10"><TableLayout cellSpacing="2"><Row preferredHeight="48">
-              <Cell><Panel id="Brown_R9_C_pnl" class="Base Caballero" color="Brown"><Text id="Brown_R9_C_txt" class="M" text="0"/></Panel></Cell>
+              <Cell><Panel id="Blue_R9_C_pnl" class="Base Caballero" color="Blue"><Text id="Blue_R9_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Red_R9_C_pnl" class="Base Caballero" color="Red"><Text id="Red_R9_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Green_R9_C_pnl" class="Base Caballero" color="Green"><Text id="Green_R9_C_txt" class="M" text="0"/></Panel></Cell>
               <Cell><Panel id="Purple_R9_C_pnl" class="Base Caballero" color="Purple"><Text id="Purple_R9_C_txt" class="M" text="0"/></Panel></Cell>
@@ -112,7 +111,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R1_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R1_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R1_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R1_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R1_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -123,7 +122,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R2_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R2_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R2_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R2_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R2_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -134,7 +133,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R3_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R3_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R3_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R3_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R3_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -145,7 +144,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R4_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R4_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R4_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R4_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R4_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -156,7 +155,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R5_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R5_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R5_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R5_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R5_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -167,7 +166,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R6_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R6_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R6_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R6_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R6_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -178,7 +177,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R7_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R7_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R7_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R7_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R7_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -189,7 +188,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R8_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R8_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R8_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R8_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R8_G_pnl" class="Base Grande" color="Purple"/></Cell>
@@ -200,7 +199,7 @@
         <Cell padding="10 10 10 5">
           <TableLayout cellSpacing="2">
             <Row preferredHeight="48">
-              <Cell><Panel id="Brown_R9_G_pnl" class="Base Grande" color="Brown"/></Cell>
+              <Cell><Panel id="Blue_R9_G_pnl" class="Base Grande" color="Blue"/></Cell>
               <Cell><Panel id="Red_R9_G_pnl" class="Base Grande" color="Red"/></Cell>
               <Cell><Panel id="Green_R9_G_pnl" class="Base Grande" color="Green"/></Cell>
               <Cell><Panel id="Purple_R9_G_pnl" class="Base Grande" color="Purple"/></Cell>

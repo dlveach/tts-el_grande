@@ -17,7 +17,7 @@
         <Cell columnSpan="5"><Panel class="Light Title"><Text class="XL Title" text="Castillo"/></Panel></Cell>
       </Row>
       <Row preferredHeight="140">
-        <Cell padding="10"><Panel id="Brown_pnl" active="false" class="Base" color="Brown"><Text id="Brown_txt" class="XXL" text="0"/></Panel></Cell>
+        <Cell padding="10"><Panel id="Blue_pnl" active="false" class="Base" color="Blue"><Text id="Blue_txt" class="XXL" text="0"/></Panel></Cell>
         <Cell padding="10"><Panel id="Red_pnl" active="false" class="Base" color="Red"><Text id="Red_txt" class="XXL" text="0"/></Panel></Cell>
         <Cell padding="10"><Panel id="Green_pnl" active="false" class="Base" color="Green"><Text id="Green_txt" class="XXL" text="0"/></Panel></Cell>
         <Cell padding="10"><Panel id="Purple_pnl" active="false" class="Base" color="Purple"><Text id="Purple_txt" class="XXL" text="0"/></Panel></Cell>
