@@ -1071,7 +1071,9 @@ function addCaballero(region, color, guid)
       debug("add caballero during special")
       local s = a.special
       if Split(s.id,"_")[1] == "move" then
+        log("is a move special action")
         any_region = contains(s, "any_region")
+        log("any_region "..tostring(any_region))
         allowed = true
         if Split(s.id,"_")[2] == "opp" then opp = true end
         if Split(s.id,"_")[2] == "any" then any = true end
@@ -1138,7 +1140,10 @@ function addCaballero(region, color, guid)
         local source = ""
         if contains(G.d.players[color].court,guid) then source = "court" end
         for g,r in pairs(G.obj.regions) do
-          if r.caballeros[color][guid] then source=g; break end
+          if r.caballeros[color][guid] then
+            if r.king then debug("failed, cannot move from king region"); return false end
+            source=g; break
+          end
         end
         if origin and source ~= origin then debug("failed origin check"); return false end
         if each then
@@ -1301,7 +1306,7 @@ function setKing(region)
       debug("set King during special")
       local allowed = false
       local any_region = false
-      if contains(s,"move_king") then
+      if contains(a.special, "move_king") then
         allowed = true
         any_region = contains(a.special, "any_region")
       end
@@ -1309,7 +1314,6 @@ function setKing(region)
       if not(any_region) then
         if not(checkKing(rdata)) then debug("failed King's prior region adjacecy check"); return false end
       end
-      if contains(a.pending_cubes,guid) then return true end --allow pending moves after adjacecy and action check
       --save an undo on first time to retain origin info
       if not(a.undo[a.stage][guid]) then
         local origin = nil
@@ -1358,13 +1362,50 @@ function addToCastillo(obj)
   if obj.hasTag("Caballero") then
     if G.d.phase == "actions" then
       local a = G.d.action
+      local allowed, min, max, each, opp, any, origin = false, nil, nil, false, false, false, nil
       if a.stage == "special" then
         debug("add Caballero to Castillo during action special stage")
-        --TODO: implement
-        debug("TODO: add to Castillo during special not implemented yet")
-        --determine source, limits etc from special
-        --handle single_origin, set origin in action if not set
-        return false
+        local s = a.special
+        if Split(s.id,"_")[1] == "move" then
+          allowed = true
+          if Split(s.id,"_")[2] == "opp" then opp = true end
+          if Split(s.id,"_")[2] == "any" then any = true end
+          if Split(s.id,"_")[2] == "court" then origin = "court" end
+          max = s.max; min = s.min
+          if s.each then each = true end
+        elseif s.single_origin then
+          if s.origin then
+            if s.origin == "court" then
+              max = s.max
+              if not(contains(G.d.players[color].court,guid)) then debug("failed origin not court"); return false end
+            end
+          else
+            if contains(G.d.players[color].court,guid) then
+              if s.court_ok then s.origin = "court" else debug("failed, origin court not allowed"); return false end
+            else
+              for g,r in pairs(G.obj.regions) do
+                if r.caballeros[color][guid] then
+                  if r.king then debug("failed, cannot move from king region"); return false end
+                  s.origin=g; break
+                end
+              end
+            end
+          end
+          origin = s.origin
+          allowed = true
+        end
+        if not(allowed) then debug("move caballero not allowed"); return false end
+        if contains(a.pending_cubes,guid) then --allow pending cubes after above checks
+          add(); return true
+        end
+        if color == a.player and opp then debug("failed, only opp allowed"); return false
+        elseif color ~= a.player and not(opp or any) then debug("failed, opp not allowed"); return false end
+        --check move limits
+        if each then
+          if max and a.caballeros_moved[color] >= max then debug("failed limit check for each"); return false end
+        else
+          if max and a.caballeros_moved >= max then debug("failed limit check"); return false end
+        end
       elseif a.stage == "court" then
         debug("add Caballero to Castillo during action court stage")
         if not(contains(a.pending_cubes,guid)) then
@@ -1389,14 +1430,38 @@ function addToCastillo(obj)
           updatePlayerBoardUI(a.player)
         end
       elseif a.stage == "special" then
-        return false --TODO: imlement: see addCaballero() above
         --determine source
+        local source = ""
+        if contains(G.d.players[color].court,guid) then source = "court" end
+        for g,r in pairs(G.obj.regions) do
+          if r.caballeros[color][guid] then
+            if r.king then debug("failed, cannot move from king region"); return false end
+            source=g; break
+          end
+        end
         --check action origin requirement
-        --handle "each"
-        --increment counters, update stage_status
+        if origin and source ~= origin then debug("failed origin check"); return false end
+        --handle "each" and increment counters, update stage_status
+        if each then
+          a.caballeros_moved[color] = a.caballeros_moved[color] + 1
+          local n = 0; for _,c in pairs(a.caballeros_moved) do n=n+c end
+          if max then a.stage_status = "Moved "..tostring(n).." / "..tostring(max)
+          else a.stage_status = "Moved "..tostring(n) end
+        else
+          a.caballeros_moved = a.caballeros_moved + 1
+          if max then a.stage_status = "Moved "..tostring(a.caballeros_moved).." / "..tostring(max)
+          else a.stage_status = "Moved "..tostring(a.caballeros_moved) end
+        end
         --update pending_cubes
+        pendingCubes("add",guid)
         --update UI
+        updatePlayerBoardUI(a.player)
         --add or update undo (u.id, u.snap, u.region_guid)
+        if source == "court" then
+          a.undo.special[guid]={id="castillo",g=guid,color=color,player=a.player,origin="court",}
+        else
+          a.undo.special[guid]={id="castillo",g=guid,color=color,player=a.player,origin=source,snap=G.obj.snaps[guid],}
+        end
       end
       add()
     else
@@ -1869,7 +1934,7 @@ function undo(u)
           returnToCourt(o.memo, u.g)
         elseif u.snap then
           o.setPosition(u.snap)
-          G.obj.regions[u.region_guid].caballeros[u.color][u.g] = true
+          G.obj.regions[u.origin].caballeros[u.color][u.g] = true
         end
       end
     })
