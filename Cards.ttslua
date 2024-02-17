@@ -1,6 +1,6 @@
 --[[Card metadata
   NOTE:
-    - for multiple specials, order by intermediate then final in table.
+    - for multiple specials, order by intermediate then final in table. --TODO probably not doing this, reduce code
     - structure of special.id is sometimes parsed, be careful.  especially move_*_caballero
 ]]
 cards = {
@@ -12,7 +12,7 @@ cards = {
       {
         id="action_id",
         desc="action stage description",
-        dest="any_region",
+        dest="any_region", --any region except the king's or the castillo, otherwise limit to king adjacecy
         min=0, --min cubes moved entire special
         max=0, --max cubes moved entire special
         each=false, --min/max are evaluated per player/opponent (any/opp in 2nd field of id)
@@ -22,32 +22,62 @@ cards = {
         opp=true, --Only opponents do the thing
         all=true, --all players do the thing
         disk=true, --secret disk selection occurs to define affected regions
-        any_region, --any region except the king's or the castillo
         special_scoring, --region_score=N|caballeros=N|player_choice=true
       },
     },
   },
-  ["a57d8a"] = { name="King's card", description="King's Card: Move the King to any Region", --TODO: test
+  ["a57d8a"] = { name="King's card", description="King -> any Region",
     court=5, specials={{id="move_king",dest="any_region",desc="Move King?"},},
   },
-  ["a76961"] = { name="The Court", description="The Court: Move 2 Caballeros from Provinces to Court",
+  ["a76961"] = { name="The Court", description="Move 2 Prov -> Court",
     court=4, specials={{id="prov2court",count=2,immediate=true,},},
   },
-  ["238e55"] = { name="Intrique", description="Intrique: Move any 3 Caballeros on the board",
-    court=1, specials={{id="move_any_caballero",max=3,min=0,desc="To Castillo or any region but the King's",},},
+  ["238e55"] = { name="Intrigue", description="Move any 3 Caballeros",
+    court=1, specials={{id="move_any_caballero",max=3,min=0,desc="Castillo/any not King",},},
   },
-  ["5a4621"] = { name="Intrique", description="Intrique: Move any 3 foriegn Caballeros on the board",
-    court=1, specials={{id="move_opp_caballero",dest="any_region",max=3,min=0,desc="To Castillo or any region but the King's",},},
+  ["5a4621"] = { name="Intrigue", description="Move 3 opp Caballeros",
+    court=1, specials={{id="move_opp_caballero",dest="any_region",max=3,min=0,desc="Castillo/any not King",},},
   },
-  ["ba6c53"] = { name="Provinces", description="Provinces: Opponents return 2 Caballeros",
-    court=2, specials={{id="ret2provinces", disk=true, opp=2, count=2, king=true, desc="Opponents select a region",},},
+  ["ba6c53"] = { name="Provinces", description="Opp ret 2 -> Prov",
+    court=2, specials={{id="ret2provinces", disk=true, opp=2, count=2, king=true, desc="Opponents select secretly",},},
   },
-  ["4b865f"] = { name="Grande", description="Grande: may move your Grande to a different region",
-    court=4, specials={{id="grande",dest="any_region",desc="Move to any region but the King's",},},
+  ["4b865f"] = { name="Grande", description="Move your Grande",
+    court=4, specials={{id="grande",dest="any_region",desc="Any region not King",},},
   },
-  ["593f4a"] = { name="Special Scoring", description="Score all the 5 regions",
-    court=3, specials={{id="special_scoring",region_score=5, desc="Special Scoring: 5 regions"}}},
-  ["26b6fe"] = { name="Special Scoring", description="Score all the 4 regions",
-    court=3, specials={{id="special_scoring",region_score=4, desc="Special Scoring: 4 regions"}}},
-
+  ["593f4a"] = { name="Special Scoring", description="Score all the 5's",
+    court=3, specials={{id="special_scoring",region_score=5, desc="Special Scoring: 5 regions"},},
+  },
+  ["26b6fe"] = { name="Special Scoring", description="Score all the 4'sm",
+    court=3, specials={{id="special_scoring",region_score=4, desc="Special Scoring: 4 regions"},},
+  },
+  ["e2797e"] = { name="Special Scoring", description="Score Secret Regions",
+    court=4, specials={{id="special_scoring",secret=true, players="all", unique=true, desc="All select a region\nDuplicates will be ignored!"},},
+  },
+  ["6c72f7"] = { name="Special Scoring", description="Score a Secret Region",
+    court=2, specials={{id="special_scoring", secret=true, players="active", desc="Active select a region to score",},},
+  },
+  ["6f938d"] = { name="Special Scoring", description="Score all the 5's",
+    court=3, specials={{id="special_scoring",region_score=5, desc="Special Scoring: 5 regions"},},
+  },
+  ["d9ad73"] = { name="Decay of Authority", description="Opp 3 Court -> Prov",
+    court=2, specials={{id="court_2_prov", opp=true, count=3, immediate=true,},},
+  },
+  ["da5f46"] = { name="Power Cards", description="Restore one bid token",
+    court=4, specials={{id="restore_bid", desc="Select a used bid",},},
+  },
+  ["93bc56"] = { name="Intrigue", description="2 Court / All in 1",
+    court=1, specials={{id="2_court_or_all_in_1", max=2, dest="any_region", court_ok=true, single_origin=true, desc="Start moving",},}, --TODO: handle addToCastillo()
+  },
+  ["a96861"] = { name="Intrigue", description="2 from Court",
+    court=1, specials={{id="move_court_2_reg", dest="any_region", max=2, court_ok=true, },},
+  },
+  ["52080d"] = { name="Special Scoring", description="Score a Secret Region",
+    court=2, specials={{id="special_scoring", secret=true, players="active", desc="Active select a region to score",},},
+  },
+  ["ccf2d2"] = { name="Mobile ScoreBoard", description="Mobile Score Board",
+    court=4, specials={{id="mobile_score_board", desc="Move a scoreboard"},},
+  },
+  ["51bb80"] = { name="King Returns", description="Opp send 3 -> Prov",
+    court=2, specials={{id="king_returns",disk=false,min=3,max=3, desc="Opp 3 -> Prov"},},
+  },
 }

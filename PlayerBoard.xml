@@ -7,7 +7,7 @@
   <Panel raycastTarget="false" />
   <Panel class="Main" rotation="0 0 180" scale="0.5 0.5" />
   <image class="diskButton" onClick="Global/diskClick" />
-  <Button class="action" fontSize="12" onClick="Global/actionClick" />
+  <Button class="action" onClick="Global/actionClick" />
 </Defaults>
 
 <!-- Main player status panel -->
@@ -35,17 +35,15 @@
     <TableLayout>
       <Row id="action_desc_row" active="true" preferredHeight="60">
         <Cell padding="5 5 0 0">
-          <Text id="action_desc_txt" class="VS" >
+          <Text id="action_desc_txt" class="ML" >
             Description of the action
-            Select stage to complete first
-            Done skips incomplete stages
           </Text>
         </Cell>
       </Row>
       <Row id="action_court_row" active="false" preferredHeight="60">
         <Cell padding="10 10 5 5">
           <Panel id="action_court_pnl">
-            <Button id="action_court" class="action" text="Move Caballeros from Court to Regions" />
+            <Button id="action_court" class="action" text="Court" />
           </Panel>
           <Panel id="action_court_finished" active="false">
             <Text class="M LGray" text="Court Completed"/>
@@ -55,7 +53,7 @@
       <Row id="action_special_row" active="false" preferredHeight="60">
         <Cell padding="10 10 5 5">
           <Panel id="action_special_pnl">
-            <Button id="action_special" class="action" text="Execute the card special action" />
+            <Button id="action_special" class="action" text="Special Action" />
           </Panel>
           <Panel id="action_special_finished" active="false">
             <Text class="M LGray" text="Special Completed"/>
@@ -67,7 +65,7 @@
           <TableLayout>
             <Row id="stage_status_row" active="false" preferredHeight="40">
               <Cell padding="10 10 5 5">
-                <Text id="stage_status_txt" class="VS" text="Status: 0 / 6 Caballeros moved"/>
+                <Text id="stage_status_txt" class="ML" text="Status: 0 / 6 Caballeros moved"/>
               </Cell>
             </Row>
             <Row id="stage_finished_row" active="false" preferredHeight="40">

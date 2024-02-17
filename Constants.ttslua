@@ -9,8 +9,10 @@ C.stacks={"e4530b","d81048","1baff8","f8d8b2","a57d8a",}
 C.player_boards={Blue="01cf4f",Red="40aa3a",Green="5688f0",Purple="7289a1",Yellow="edd3ca",}
 C.trash="595833"
 C.king="a0789f"
-C.mobile_sb640="c1e157"
-C.mobile_sb400="c03bf9"
+C.mobile_score_boards={
+  ["c1e157"]={scoring={8,4,0}, home_pos={50.12, 1.01, -8.92}, image="MSB840"},
+  ["c03bf9"]={scoring={4,0,0}, home_pos={50.13, 1.01, -12.71}, image="MSB400"},
+}
 --Intrigue expansion
 C.caballero_deck = "39a2b3"
 C.decks={Blue="dade1b",Red="9c36f4",Green="634e7c",Purple="7e16a2",Yellow="118ba3",}
@@ -29,6 +31,18 @@ C.card_button={
 C.grande_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"a43cfd","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Grande","Snap":true,"Sticky":true,"Tags":["Grande"],"Tooltip":true,"Transform":{"posX":-40.3152770996094,"posY":1.46000003814697,"posZ":-19.7744293212891,"rotX":3.77321953237697E-07,"rotY":-4.34147695571596E-09,"rotZ":-7.94435166540097E-08,"scaleX":1,"scaleY":1,"scaleZ":1},"Value":0,"XmlUI":""}'
 C.caballero_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"222ecb","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Caballero","Snap":true,"Sticky":true,"Tags":["Caballero"],"Tooltip":true,"Transform":{"posX":-40.3260803222656,"posY":1.21000027656555,"posZ":-21.2416534423828,"rotX":-5.58641488623834E-07,"rotY":-1.5730960512883E-05,"rotZ":-3.4076799693139E-07,"scaleX":0.500000417232513,"scaleY":0.500000417232513,"scaleZ":0.500000417232513},"Value":0,"XmlUI":""}'
 --[[ Positions ]]
+C.score_board_positions={
+  {-43.27, 1.2, 28.95},
+  {-31.48, 1.2, 28.95},
+  {-19.71, 1.2, 28.95},
+  {-8.00, 1.2, 28.95},
+  {3.73, 1.2, 28.95},
+  {15.44, 1.2, 28.95},
+  {27.20, 1.2, 28.95},
+  {38.87, 1.2, 28.95},
+  {50.69, 1.2, 28.95},
+}
+C.castillo_mb_position = {26.78, 1.11, -1.30}
 C.king_card_position={-40.13, 0.97, 14.84}
 C.round_marker_positions={
   {-27.37, 1.60, 10.82},
@@ -125,6 +139,18 @@ C.region_start_info={
   ["5c52ab"]={king={15.72, 2.75, 5.11},grande={Blue={12.77, 1.66, -4.93},Red={11.86, 1.66, -2.38},Green={13.73, 1.66, -2.34},Purple={15.59, 1.66, -2.39},Yellow={15.59, 1.66, -2.39},},},
   ["d53798"]={king={-8.92, 2.75, -7.11},grande={Blue={-6.53, 1.66, -12.36},Red={-7.44, 1.66, -9.82},Green={-5.58, 1.66, -9.78},Purple={-3.71, 1.66, -9.83},Yellow={-4.62, 1.66, -12.34},},},
   ["c74830"]={king={-1.20, 2.85, -14.41},grande={Blue={1.28, 1.66, -10.16},Red={2.98, 1.66, -10.20},Green={4.85, 1.66, -10.16},Purple={6.72, 1.66, -10.21},Yellow={8.56, 1.66, -10.20},},},
+}
+C.region_xml = '[{"attributes":[],"children":[{"attributes":{"height":"50","id":"mb_panel","color":"rgba(0,0,0,0)","position":"-113 -39 -7","raycastTarget":"false","rotation":"0 0 180","width":"108"},"children":[{"attributes":{"color":"#E3C8B3","id":"mb_image","image":"MB840","preserveAspect":"true"},"children":[],"tag":"Image"}],"tag":"Panel"}],"tag":"XmlLayout"}]'
+C.region_ui = {
+  ["7593ad"] = {scale="1.37 1.37",position="6 -45 -7",active="true"},       --1 Galicia
+  ["9831c2"] = {scale="1.39 1.39",position="-73.5 -48 -7",active="true"},   --2 Basque Country
+  ["034b56"] = {scale="0.77 0.77",position="-76.5 27.5 -7",active="true"},  --3 Old Castille
+  ["e63e4a"] = {scale="1.21 1.21",position="92 33 -7",active="true"},       --4 Aragon
+  ["ff0a84"] = {scale="1.21 1.21",position="-3 -62.5 -7",active="true"},    --5 Catalonia
+  ["719679"] = {scale="1 1",position="-113 -39 -7",active="false"},         --6 New Castille
+  ["5c52ab"] = {scale="1 1",position="-18.5 -108 -7",active="true"},        --7 Valencia
+  ["d53798"] = {scale="1.45 1.45",position="-8 -108.5 -7",active="false"},  --8 Seville
+  ["c74830"] = {scale="1.25 1.25",position="57 60 -7",active="true"},       --9 Granada
 }
 C.castillo_template={
   name="Castillo",scoring={5,3,1},score_board=false,caballeros={Blue={},Red={},Green={},Purple={},Yellow={},},

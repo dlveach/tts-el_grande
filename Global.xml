@@ -49,7 +49,7 @@
     <TableLayout columnWidths="140 0">
       <Row preferredHeight="100">
         <Cell columnSpan="2" padding="5">
-          <Text id="wait_message_txt" class="M">
+          <Text id="wait_message_txt" class="M LBrown">
             Waiting on players to follow
             instructions on what to do
             in this message area.
@@ -113,10 +113,17 @@
 <Panel id="scoring_pnl" active="false" class="Draggable Light Base" width="280" height="515" padding="5" rectAlignment="UpperRight" offsetXY="-40 -80">
   <Panel class="Dark Viewport" padding="15 15 0 0">
     <TableLayout columnWidths="50 50 140">
-      <Row preferredHeight="40">
+      <Row id="scoring_title_row" preferredHeight="40">
         <Cell columnSpan="3" padding="5"><Text id="scoring_title_txt" class="L LBrown" text="General Scoring"/></Cell>
       </Row>
-      <Row preferredHeight="100">
+      <Row id="scoring_subtitle_row" preferredHeight="60">
+        <Cell columnSpan="3" padding="5"><Text id="scoring_subtitle_txt" class="S LBrown">
+          One row of subtitle text to display
+          2nd row of subtitle text to display
+          3rd row of subtitle text to display
+        </Text></Cell>
+      </Row>
+      <Row preferredHeight="80">
         <Cell columnSpan="3" padding="5">
           <Text id="scoring_msg_txt" class="M LBrown">
             line 1
@@ -209,6 +216,21 @@
         <Cell padding="60 60 10 0" columnSpan="3">
           <Button id="scoring_ack" fontSize="14" text="Close" onClick="scoringClick"/>
         </Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+<!-- Confirm dialog -->
+<Panel id="confirm_pnl" active="false" class="Draggable Light Base" height="160" width="310" padding="5">
+  <Panel class="Dark Viewport">
+    <TableLayout>
+      <Row preferredHeight="80"><Cell columnSpan="2"><Text id="confirm_msg_txt" class="L LBrown" text="Skip unused actions?"/></Cell></Row>
+      <Row id="confirm_cancel_ok_row" active="true" preferredHeight="60">
+        <Cell padding="15 10 5 5"><Button id="cancel" text="Cancel" onClick="confirmClick"/></Cell>
+        <Cell padding="10 15 5 5"><Button id="ok" text="Ok" onClick="confirmClick"/></Cell>
+      </Row>
+      <Row id="confirm_ack_row" active="false" preferredHeight="60">
+        <Cell columnSpan="2" padding="90 95 5 5"><Button id="ack" text="Ok" onClick="confirmClick"/></Cell>
       </Row>
     </TableLayout>
   </Panel>
