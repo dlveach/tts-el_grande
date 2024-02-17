@@ -580,7 +580,7 @@ end
 function resetAction()
   if env.trace then log("resetAction()") end
   G.d.action = {
-    stage= "",              --"main" | "court" | "special" | "next", keys to undo tables
+    stage= "",              --"main" | "court" | "special", keys to undo tables
     guid = "",              --card guid
     player = "",            --active player
     opponents = {},         --active player's opponents
@@ -590,7 +590,7 @@ function resetAction()
     pending_cubes = {},     --cubes that have been moved in this action stage (see flasher)
     caballeros = 0;         --caballeros to move
     caballeros_moved = 0;   --caballeros moved so far
-    undo = {main={},court={},next={},special={},reset=true},
+    undo = {main={},court={},special={},reset=true},
     flags = {},             --TODO: used???
     stages = {},            --usually {"special, court"}, different if played from hand (delayed) where court previously done
     stage_status = "",      --status of the current action stage when not "main"
@@ -657,7 +657,6 @@ end
 function processAction(pcol, opt)
   if env.trace then log("processAction() "..tostring(pcol)..", "..tostring(opt)) end
   local pdata = G.d.players[pcol]
-  -- pdata.allow_undo = true
   local a = G.d.action
   if opt == "court" then
     if a.stage == "main" then
@@ -674,7 +673,7 @@ function processAction(pcol, opt)
       a.stage = "special"
       a.description = cards[a.guid].description
       if not(a.description) then a.description = "Special Action" end
-      if a.specials[1].immediate then  --TODO: implement veto check
+      if a.special.immediate then  --TODO: implement veto check
         log("TODO: veto check if it is held by opponent")
         if G.d.veto then
           --if G.d.veto not nil then someone holds it.
@@ -685,23 +684,20 @@ function processAction(pcol, opt)
           -- reset G.d.veto.declined at end of this action
         end
       end
-      local desc = a.specials[1].desc
+      local desc = a.special.desc
       if not(desc) then desc = "Special Action" end
       a.stage_status = desc
-      if #a.specials > 1 then --TODO: looking like this will be removed.  Get rid of "next" and table of tables for specials
-        assert(false, "ERROR: multiple specials not supported")
-        -- a.stage = "next"
-      elseif a.specials[1].id == "ret2provinces" then --TODO: this is not finished, need the actual cube movement after disk selection wait
+      if a.special.id == "ret2provinces" then --TODO: this is not finished, need the actual cube movement after disk selection wait
         a.stage = "waiting"
-        if a.specials[1].opp then a.waitlist = simpleDeepCopy(a.opponents)
-        elseif a.specials[1].all then a.waitlist = simpleDeepCopy(G.d.player_order)
+        if a.special.opp then a.waitlist = simpleDeepCopy(a.opponents)
+        elseif a.special.all then a.waitlist = simpleDeepCopy(G.d.player_order)
         else a.waitlist = {a.player} end
         --set up the waiting dialog
         a.status = {waitlist={},}
-        a.status.info = a.specials[1].desc
+        a.status.info = a.special.desc
         if not(a.status.info) then a.status.info = "" else a.status.info = a.status.info.."\n" end
         a.status.info = a.status.info.."Secretly select target region"
-        if a.specials[1].king then a.status.info = a.status.info.."\nKing region -> return to Court" end
+        if a.special.king then a.status.info = a.status.info.."\nKing region -> return to Court" end
         local remove = {}
         for i=1,5 do
           if i <= #a.waitlist then
@@ -711,15 +707,15 @@ function processAction(pcol, opt)
             local any_caballeros = {}
             for i,g in ipairs(C.region_guids) do
               local r = G.obj.regions[g]; local allowed = true
-              if not(a.specials[1].king) then allowed = allowed and not(r.king) end
-              if a.specials[1].count then allowed = allowed and sizeOf(r.caballeros[pcol]) >= a.specials[1].count end
+              if not(a.special.king) then allowed = allowed and not(r.king) end
+              if a.special.count then allowed = allowed and sizeOf(r.caballeros[pcol]) >= a.special.count end
               if allowed then table.insert(p.allowed_regions,r.scoring_order) end
             end
-            if a.specials[1].count and #p.allowed_regions == 0 then --player didn't meet count criteria, set to regions with any caballeros
+            if a.special.count and #p.allowed_regions == 0 then --player didn't meet count criteria, set to regions with any caballeros
               for i,g in ipairs(C.region_guids) do
                 local r = G.obj.regions[g]; local allowed = true
-                if not(a.specials[1].king) then allowed = allowed and not(r.king) end
-                if a.specials[1].count then allowed = allowed and sizeOf(r.caballeros[pcol]) >= 1 end
+                if not(a.special.king) then allowed = allowed and not(r.king) end
+                if a.special.count then allowed = allowed and sizeOf(r.caballeros[pcol]) >= 1 end
                 if allowed then table.insert(p.allowed_regions,r.scoring_order) end
               end
             end
@@ -767,10 +763,10 @@ function processAction(pcol, opt)
         updateStatusUI(a.status)
         --TODO: some kind of undo for this that reverts disk selection, needed during 'undo turn' for the active player?
         a.undo["secret_selection"] = {id="disk", players=a.waitlist} --HACK: should this be in undo.main?
-      elseif a.specials[1].id == "prov2court" then
-        log("executing immediate special "..a.specials[1].id)
+      elseif a.special.id == "prov2court" then
+        log("executing immediate special "..a.special.id)
         local board = getObjectFromGUID(C.player_boards[pcol])
-        for i=1,a.specials[1].count do
+        for i=1,a.special.count do
           if #pdata.provinces > 1 then
             local o = getObjectFromGUID(pdata.provinces[#pdata.provinces])
             o.setLock(false)
@@ -786,20 +782,20 @@ function processAction(pcol, opt)
         end
         a.special_completed = true
         a.stage = "main"
-      elseif a.specials[1].id == "grande" then
-        a.stage_status = a.specials[1].desc
-        if a.specials[1].dest == "any_region" then a.any_region = true end
-      elseif a.specials[1].id == "special_scoring" then
-        log("executing immediate special "..a.specials[1].id)
-        if a.specials[1].region_score then
+      elseif a.special.id == "grande" then
+        a.stage_status = a.special.desc
+        if a.special.dest == "any_region" then a.any_region = true end
+      elseif a.special.id == "special_scoring" then
+        log("executing immediate special "..a.special.id)
+        if a.special.region_score then
           local regions = {}
           local s = "Regions: ["
-          if G.obj.castillo.scoring[1] == a.specials[1].region_score then
+          if G.obj.castillo.scoring[1] == a.special.region_score then
             table.insert(regions,"castillo")
             s = s.."Castillo,"
           end
           for _,r in pairs(G.obj.regions) do
-            if r.scoring[1] == a.specials[1].region_score then
+            if r.scoring[1] == a.special.region_score then
               table.insert(regions,r.scoring_order)
               s = s..tostring(r.scoring_order)..","
             end
@@ -808,13 +804,13 @@ function processAction(pcol, opt)
           if #regions > 0 then startScoring(regions,true,s) end
           a.special_completed = true
           a.stage = "main"
-        elseif a.specials[1].caballeros then --TODO regions by # of caballeros
-        elseif a.specials[1].secret then
+        elseif a.special.caballeros then --TODO regions by # of caballeros
+        elseif a.special.secret then
           a.stage = "waiting"
           a.status = {waitlist={},}
-          a.status.info = a.specials[1].desc
-          if a.specials[1].players == "all" then a.waitlist = simpleDeepCopy(G.d.player_order)
-          elseif a.specials[1].players == "active" then a.waitlist={G.d.active_player} end
+          a.status.info = a.special.desc
+          if a.special.players == "all" then a.waitlist = simpleDeepCopy(G.d.player_order)
+          elseif a.special.players == "active" then a.waitlist={G.d.active_player} end
           --Show players disk
           for _,pcol in ipairs(a.waitlist) do
             local pdata = G.d.players[pcol]
@@ -831,10 +827,10 @@ function processAction(pcol, opt)
           a.status.show = true
           updateStatusUI(a.status)
           local list = simpleDeepCopy(a.waitlist)
-          local unique = a.specials[1].unique or false
+          local unique = a.special.unique or false
           a.waiting = #a.waitlist
           Wait.condition(function()
-            a.undo = {main={},court={},next={},special={},reset=false} --clear undo, secrets revealed
+            a.undo = {main={},court={},special={},reset=false} --clear undo, secrets revealed
             for pcol,pdata in pairs(G.d.players) do
               pdata.show_disk = false
               pdata.undo_button = false
@@ -871,19 +867,19 @@ function processAction(pcol, opt)
         else
           log("WARN: processAction() unknown special_scoring action")
         end
-      elseif Split(a.specials[1].id,"_")[1] == "move" then
-        if a.specials[1].each then a.caballeros_moved = {Blue=0,Red=0,Green=0,Purple=0,Yellow=0} end
-        if a.specials[1].max then a.stage_status = "Moved 0 / "..tostring(a.specials[1].max)
+      elseif Split(a.special.id,"_")[1] == "move" then
+        if a.special.each then a.caballeros_moved = {Blue=0,Red=0,Green=0,Purple=0,Yellow=0} end
+        if a.special.max then a.stage_status = "Moved 0 / "..tostring(a.special.max)
         else a.stage_status = "Moved 0" end
-        if a.specials[1].court_ok then setLockCourt(pcol, false) end
-      elseif a.specials[1].id == "court_2_prov" then
-        log("executing immediate special "..a.specials[1].id)
+        if a.special.court_ok then setLockCourt(pcol, false) end
+      elseif a.special.id == "court_2_prov" then
+        log("executing immediate special "..a.special.id)
         for _,p in ipairs(a.opponents) do
           local pdata = G.d.players[p]
           local board = getObjectFromGUID(C.player_boards[p])
           local n = 0
           for _,g in ipairs(pdata.court) do
-            if a.specials[1].count and n >= a.specials[1].count then break end
+            if a.special.count and n >= a.special.count then break end
             local o = getObjectFromGUID(g)
             o.setLock(false)
             local pos = board.positionToWorld(C.prov_pos_l[#pdata.provinces+1])
@@ -897,7 +893,7 @@ function processAction(pcol, opt)
           end
           cleanupCourt(p)
         end
-      elseif a.specials[1].id == "restore_bid" then
+      elseif a.special.id == "restore_bid" then
         --enable buttons on used bid tokens
         for g,button_data in pairs(G.obj.bid_buttons) do
           if indexOf(button_data.used,pcol) > 0 then
@@ -906,9 +902,9 @@ function processAction(pcol, opt)
             updateOrderButtonUI(g,button_data)
           end
         end
-      elseif a.specials[1].id == "2_court_or_all_in_1" then
+      elseif a.special.id == "2_court_or_all_in_1" then
         setLockCourt(pcol,false)
-      elseif a.specials[1].id == "mobile_score_board" then
+      elseif a.special.id == "mobile_score_board" then
         a.score_boards = {}
         for g,_ in pairs(C.mobile_score_boards) do
           local locked = false
@@ -920,7 +916,7 @@ function processAction(pcol, opt)
             table.insert(a.score_boards, g)
           end
         end
-      elseif a.specials[1].id == "king_returns" then
+      elseif a.special.id == "king_returns" then
         log("TODO: setup king returns")
         a.stage = "waiting"
         a.stage_status = "Opp 3 -> Prov"
@@ -1002,26 +998,18 @@ function processAction(pcol, opt)
     updateCastilloUI()
     a.status.waitlist = {}
     updateStatusUI(a.status)
-  elseif opt== "next" then --TODO: not using this option, remove
-    if a.stage == "next" then
-      log("--TODO: move to next thing in stage")
-    else
-      log("ERROR: incorrect stage for next: "..tostring(a.stage)); return   --DEBUG
-    end
   elseif opt == "reset" then
     if a.stage == "court" then
       log("processAction(): reset court stage")
       for _,u in pairs(a.undo.court) do undo(u) end
       a.undo.court = {}
       a.court_completed = false
-    elseif a.stage == "special" or a.stage == "next" then
+    elseif a.stage == "special" then
       log("processAction(): reset special stage")
-      for id,u in pairs(a.undo.next) do undo(u) end
       for g,u in pairs(a.undo.special) do undo(u) end
-      a.undo.next = {}
       a.undo.special = {}
       a.special_completed = false
-      a.specials[1].origin = nil --HACK: should this be an undo or just get rid of table of specials
+      a.special.origin = nil --HACK: should this be an undo or just get rid of table of specials
     else
       log("ERROR: processAction() incorrect stage for reset: "..tostring(a.stage)); return   --DEBUG
     end
@@ -1081,35 +1069,33 @@ function addCaballero(region, color, guid)
     local allowed, any_region, min, max, each, opp, any, origin = false, false, nil, nil, false, false, false, nil
     if a.stage == "special" then
       debug("add caballero during special")
-      for _,s in ipairs(a.specials) do        --HACK: multiple specials needs to die
-        if Split(s.id,"_")[1] == "move" then
-          any_region = contains(s, "any_region")
-          allowed = true
-          if Split(s.id,"_")[2] == "opp" then opp = true end
-          if Split(s.id,"_")[2] == "any" then any = true end
-          if Split(s.id,"_")[2] == "court" then origin = "court" end
-          max = s.max; min = s.min
-          if s.each then each = true end
-          break
-        elseif s.single_origin then
-          any_region = contains(s, "any_region")
-          if s.origin then
-            if s.origin == "court" then
-              max = s.max
-              if not(contains(G.d.players[color].court,guid)) then debug("failed origin not court"); return false end
-            end
+      local s = a.special
+      if Split(s.id,"_")[1] == "move" then
+        any_region = contains(s, "any_region")
+        allowed = true
+        if Split(s.id,"_")[2] == "opp" then opp = true end
+        if Split(s.id,"_")[2] == "any" then any = true end
+        if Split(s.id,"_")[2] == "court" then origin = "court" end
+        max = s.max; min = s.min
+        if s.each then each = true end
+      elseif s.single_origin then
+        any_region = contains(s, "any_region")
+        if s.origin then
+          if s.origin == "court" then
+            max = s.max
+            if not(contains(G.d.players[color].court,guid)) then debug("failed origin not court"); return false end
+          end
+        else
+          if contains(G.d.players[color].court,guid) then
+            if s.court_ok then s.origin = "court" else debug("failed, origin court not allowed"); return false end
           else
-            if contains(G.d.players[color].court,guid) then
-              if s.court_ok then s.origin = "court" else debug("failed, origin court not allowed"); return false end
-            else
-              for g,r in pairs(G.obj.regions) do
-                if r.caballeros[color][guid] then s.origin=g; break end
-              end
+            for g,r in pairs(G.obj.regions) do
+              if r.caballeros[color][guid] then s.origin=g; break end
             end
           end
-          origin = s.origin
-          allowed = true
         end
+        origin = s.origin
+        allowed = true
       end
       if not(allowed) then debug("move caballero not allowed"); return false end
       if not(any_region) then
@@ -1236,13 +1222,10 @@ function setGrande(region, color)
     if a.stage == "special" then
       debug("set Grande during special")
       local allowed, any_region, opp = false, false, false
-      for _,s in pairs(a.specials) do --TODO remove loop if there's never more than one special
-        if contains(s,"grande") then
-          allowed = true
-           any_region = s.dest == "any_region"
-          if s.opp then opp = true end
-          break
-        end
+      if contains(a.special, "grande") then
+        allowed = true
+        any_region = a.special.dest == "any_region"
+        if a.special.opp then opp = true end
       end
       if color ~= a.player and not(opp) then debug("failed opponent check"); return false end
       if not(allowed) then debug("failed special check"); return false end
@@ -1318,12 +1301,9 @@ function setKing(region)
       debug("set King during special")
       local allowed = false
       local any_region = false
-      for _,s in pairs(a.specials) do
-        if contains(s,"move_king") then
-          allowed = true
-          any_region = contains(s, "any_region")
-          break
-        end
+      if contains(s,"move_king") then
+        allowed = true
+        any_region = contains(a.special, "any_region")
       end
       if not(allowed) then debug("failed special check"); return false end
       if not(any_region) then
@@ -1561,7 +1541,7 @@ function playerDone(pcol)
       local index = indexOf(a.waitlist, pcol)
       if index > 0 then
         local e = a.status.waitlist[index]
-        if a.specials[1].disk then
+        if a.special.disk then
           e.player_status = "Set"
         else
           e.player_status = "Done"
@@ -1576,7 +1556,7 @@ function playerDone(pcol)
         log("playerDone() a.waiting = "..tostring(a.waiting))
         a.waiting = a.waiting - 1
         pdata.disk_button = false
-        if a.specials[1].disk then
+        if a.special.disk then
           pdata.undo_button = true
         else
           pdata.undo_button = false
@@ -1728,7 +1708,7 @@ function playerUndo(pcol)
           if e.player_color == pcol then e.player_status = "Deciding"; break end
         end
         updateStatusUI(a.status)
-        if a.specials[1].disk then
+        if a.special.disk then
           a.waiting = a.waiting + 1
           pdata.disk_button = true
           pdata.done_button = true
@@ -2502,11 +2482,11 @@ function onObjectDrop(pcol, obj)
       local a = G.d.action
       local guid = obj.getGUID()
       local success = false
-      if a.stage == "waiting" and a.specials[1].id == "king_returns" then
+      if a.stage == "waiting" and a.special.id == "king_returns" then
         if not(G.d.players[pcol].active) then log(pcol.." not the active deciding player"); snapBack(guid); return end
         local origin = nil
         if pcol == obj.memo and pcol == keyOf(C.player_boards, board) then
-          if a.caballeros_moved[pcol] == a.specials[1].max then log(pcol.." has returned max cubes"); snapBack(guid); return end
+          if a.caballeros_moved[pcol] == a.special.max then log(pcol.." has returned max cubes"); snapBack(guid); return end
           --get the object origin (region or court), remove it when found
           if indexOf(G.d.players[pcol].court, guid) > 0 then
             origin = "court"; table.remove(G.d.players[pcol].court,indexOf(G.d.players[pcol].court, guid))
@@ -2524,7 +2504,7 @@ function onObjectDrop(pcol, obj)
             G.d.players[pcol].undo_button = true
             updatePlayerBoardUI(pcol)
           end
-          if a.caballeros_moved[pcol] == a.specials[1].max then
+          if a.caballeros_moved[pcol] == a.special.max then
             log(pcol.." has returned the required number of cubes")
             G.d.players[pcol].done_button = true
             updatePlayerBoardUI(pcol)
@@ -2618,7 +2598,7 @@ function cardClick(card, pcol, alt)
     if c~=pcol then table.insert(a.opponents,c) end
   end
   a.court = cinfo.court
-  a.specials = simpleDeepCopy(cinfo.specials)
+  a.special = simpleDeepCopy(cinfo.special)
   card.clearButtons()
   a.undo.main[card.guid] = {id="select_card",g=card.guid,pcol=pcol,snap=card.getPosition()}
   local board = getObjectFromGUID(C.player_boards[pcol])
@@ -2626,6 +2606,7 @@ function cardClick(card, pcol, alt)
   Wait.condition(function() card.setLock(true) end, function() return card.resting end)
   pdata.action_card = card.getGUID()
   pdata.undo_button = true
+  pdata.allow_undo = true
   pdata.done_button = true
   pdata.action_ui = true
   updatePlayerBoardUI(pcol)
@@ -2781,7 +2762,6 @@ function updateBoardUI()
 end
 --[[ Update the player board UI for a given player with current data.
 ]]
---TODO: get rid of 'next'
 function updatePlayerBoardUI(pcol)
   if env.trace then log("updatePlayerBoardUI() "..tostring(pcol)) end
   local pdata = G.d.players[pcol]
@@ -2840,7 +2820,6 @@ function updatePlayerBoardUI(pcol)
       object_UI_setAttribute(board, "stage_status_row","active",true)
       object_UI_setAttribute(board, "stage_finished_row","active",true)
       object_UI_setAttribute(board, "stage_finished_placeholder_row","active",false)
-      object_UI_setAttribute(board, "stage_next_row","active",false)
       object_UI_setAttribute(board, "stage_reset_row","active",not(pdata.disable_reset))
     elseif a.stage == "special" then
       object_UI_setAttribute(board, "action_court_row","active",false)
@@ -2850,16 +2829,6 @@ function updatePlayerBoardUI(pcol)
       object_UI_setAttribute(board, "stage_status_row","active",true)
       object_UI_setAttribute(board, "stage_finished_row","active",true)
       object_UI_setAttribute(board, "stage_finished_placeholder_row","active",false)
-      object_UI_setAttribute(board, "stage_next_row","active",false)
-      object_UI_setAttribute(board, "stage_reset_row","active",not(pdata.disable_reset))
-    elseif a.stage == "next" then
-      object_UI_setAttribute(board, "action_court_row","active",false)
-      object_UI_setAttribute(board, "action_special_row","active",false)
-      object_UI_setAttribute(board, "action_stage_row","active",true)
-      object_UI_setAttribute(board, "stage_status_txt","text",a.stage_status)
-      object_UI_setAttribute(board, "stage_finished_row","active",false)
-      object_UI_setAttribute(board, "stage_finished_placeholder_row","active",false)
-      object_UI_setAttribute(board, "stage_next_row","active",true)
       object_UI_setAttribute(board, "stage_reset_row","active",not(pdata.disable_reset))
     elseif a.stage == "waiting" then
       object_UI_setAttribute(board, "action_court_row","active",false)
@@ -2869,7 +2838,6 @@ function updatePlayerBoardUI(pcol)
       object_UI_setAttribute(board, "stage_status_row","active",true)
       object_UI_setAttribute(board, "stage_finished_row","active",false)
       object_UI_setAttribute(board, "stage_finished_placeholder_row","active",true)
-      object_UI_setAttribute(board, "stage_next_row","active",false)
       object_UI_setAttribute(board, "stage_reset_row","active",not(pdata.disable_reset))
     else
       log("WARN: updatePlayerBoardUI() unknown action stage")

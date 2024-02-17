@@ -30,8 +30,6 @@ function onLoad(saved_data)
     action_special.attributes.id = color.."_action_special"
     local stage_finished = getXmlElement("stage_finished",xml)
     stage_finished.attributes.id = color.."_stage_finished"
-    local stage_next = getXmlElement("stage_next",xml)
-    stage_next.attributes.id = color.."_stage_next"
     local stage_reset = getXmlElement("stage_reset",xml)
     stage_reset.attributes.id = color.."_stage_reset"
     --save back xml

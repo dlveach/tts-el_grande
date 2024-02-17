@@ -74,11 +74,6 @@
               </Cell>
             </Row>
             <Row id="stage_finished_placeholder_row" active="false" preferredHeight="40"/>
-            <Row id="stage_next_row" active="false" preferredHeight="40">
-              <Cell padding="20 20 5 5">
-                <Button id="stage_next" class="action" text="Next"/>
-              </Cell>
-            </Row>
             <Row id="stage_reset_row" active="false" preferredHeight="40">
               <Cell padding="20 20 5 5">
                 <Button id="stage_reset" class="action" text="Reset"/>
