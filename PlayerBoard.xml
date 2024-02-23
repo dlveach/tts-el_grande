@@ -15,7 +15,10 @@
   <Panel class="Dark Viewport">
     <TableLayout>
       <Row preferredHeight="40">
-        <Cell><Panel id="active_pnl" active="false" class="Title" color="Pink"><Text id="active_txt" fontSize="28" text="Active"/></Panel></Cell>
+        <Cell>
+          <Panel id="active_pnl" active="false" class="Title" color="Pink"><Text id="active_txt" fontSize="28" text="Active"/></Panel>
+          <Panel id="done_pnl" active="false" class="Title" color="Gray"><Text id="done_txt" fontSize="28" text="Done"/></Panel>
+        </Cell>
       </Row>
       <Row id="undo_row" preferredHeight="65">
         <Cell padding="20 20 15 10"><Button id="undo" active="false" onClick="Global/playerButton" text="Undo Turn"/></Cell>

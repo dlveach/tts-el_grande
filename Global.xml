@@ -123,13 +123,24 @@
           3rd row of subtitle text to display
         </Text></Cell>
       </Row>
-      <Row preferredHeight="80">
+      <Row id="scoring_msg_row" preferredHeight="80">
         <Cell columnSpan="3" padding="5">
           <Text id="scoring_msg_txt" class="M LBrown">
             line 1
             line 2
             line 3
           </Text>
+        </Cell>
+      </Row>
+      <Row id="scoring_veto_row" preferredHeight="80">
+        <Cell columnSpan="3" padding="0 0 0 0">
+          <VerticalLayout>
+            <Text class="M LBrown" id="scoring_veto_msg_txt" text="Veto Special Scoring?"/>
+            <!-- <HorizontalLayout spacing="20" padding="50 50 0 0">
+              <Button id="scoring_veto_no" text="No" onClick="scoringClick"/>
+              <Button id="scoring_veto_yes" text="Yes" onClick="scoringClick"/>
+            </HorizontalLayout> -->
+          </VerticalLayout>
         </Cell>
       </Row>
       <Row id="scoring_1_row" preferredHeight="40">
@@ -214,7 +225,7 @@
       </Row>
       <Row id="scoring_ack_row" active="false" preferredHeight="40">
         <Cell padding="60 60 10 0" columnSpan="3">
-          <Button id="scoring_ack" fontSize="14" text="Close" onClick="scoringClick"/>
+          <Button id="scoring_dlg_close" fontSize="14" text="Close" onClick="scoringClick"/>
         </Cell>
       </Row>
     </TableLayout>
@@ -235,5 +246,21 @@
     </TableLayout>
   </Panel>
 </Panel>
+<!-- Veto dialog -->
+<Panel id="veto_pnl" active="false" class="Draggable Light Base" height="190" width="310" padding="5">
+  <Panel class="Dark Viewport">
+    <TableLayout>
+      <Row preferredHeight="70"><Cell columnSpan="2" padding="80 80 20 10">
+        <Panel id="veto_player_pnl" class="Base" color="Gray"><Text id="veto_player_txt" class="L" text="Gray"/></Panel></Cell>
+      </Row>
+      <Row preferredHeight="40"><Cell columnSpan="2"><Text id="veto_msg_txt" class="L LBrown" alignment="UpperCenter" text="Veto the Special Action?"/></Cell></Row>
+      <Row active="true" preferredHeight="60">
+        <Cell padding="15 10 5 5"><Button id="veto_no" text="No" onClick="vetoClick"/></Cell>
+        <Cell padding="10 15 5 5"><Button id="veto_yes" text="Yes" onClick="vetoClick"/></Cell>
+      </Row>
+    </TableLayout>
+  </Panel>
+</Panel>
+
 
 </XmlLayout>
