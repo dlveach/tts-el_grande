@@ -36,18 +36,16 @@ cards = {
   ["238e55"] = { name="Intrigue",description="Move any 3 Caballeros\non the board",
     court=1, special={id="move_any_caballero",max=3,min=0,dest="any_region",desc="Any Region/Castillo",},
   },
-
   ["75cd84"] = { name="Intrigue",description="Move 4 of your Caballeros\non the board",
     court=1, special={id="move_caballero",max=4,min=0,dest="any_region",desc="Any Region/Castillo",}, --TODO: test
   },
-
   ["93bc56"] = { name="Intrigue",description="Move 2 from your Court\nor all in one Region",
     court=1, special={id="2_court_or_all_in_1", max=2, dest="any_region", court_ok=true, single_origin=true, desc="Start moving",},
   },
   ["a96861"] = { name="Intrigue",description="Move 2 Caballeros\nfrom the Court",
     court=1, special={id="move_court_2_reg", dest="any_region", max=2, court_ok=true, },
   },
-  ["51bb80"] = { name="King Returns",description="Opponents send 3 Caballeros\nback to the Provinces",
+  ["51bb80"] = { name="King Returns",description="Opponents send 3 Caballeros\nback to the Provinces", --TODO: retest
     court=2, special={id="king_returns",disk=false,min=3,max=3, desc="Opp 3 -> Prov"},
   },
   ["8bf7dc"] = { name="Evict",description="Opponents Evicted from\nany one region",
@@ -62,14 +60,14 @@ cards = {
   ["41d1f0"] = { name="Intrigue",description="Move 5 Caballeros\nfrom any one Region",
     court=1, special={id="move_any_caballero",single_origin=true,max=5,min=0,dest="any_region",desc="Start moving",},
   },
-  ["6c72f7"] = { name="Provinces",description="Opponents return all\nCaballeros to Provinces",
+  ["6c72f7"] = { name="Provinces",description="Opponents return\nall Caballeros", --TODO: retest
     court=2, special={id="ret2provinces", disk=true, desc="Opponents select secretly",},
   },
   ["d7eb8e"] = { name="Intrigue",description="Move any 3 Caballeros\non the board",
     court=1, special={id="move_any_caballero",max=4,min=0,dest="any_region",desc="Any Region/Castillo",},
   },
   ["e2797e"] = { name="Special Scoring",description="Score Secret Regions\nif uniquely selected",
-    court=4, special={id="special_scoring",secret=true, players="all", unique=true, desc="All select a region\nDuplicates will be ignored!"}, --TODO: retest
+    court=4, special={id="special_scoring",secret=true, disk=true, players="all", unique=true, desc="All select a region\nDuplicates will be ignored!"},
   },
   ["3440ee"] = { name="Special Scoring",description="Score the region\nwith most Caballeros",
     court=3, special={id="special_scoring",immediate=true,most_caballeros=true, desc="Special Scoring: most"}, --TODO: retest
@@ -83,15 +81,12 @@ cards = {
   ["d292c6"] = { name="Special Scoring",description="Score the Castillo",
     court=3, special={id="special_scoring", immediate=true, castillo=true, desc="Special Scoring: Castillo"}, --TODO: retest
   },
-
-
   ["ba6c53"] = { name="Provinces",description="Opponents send 2 Caballeros\nback to the Provinces", --TODO: retest
     court=2, special={id="ret2provinces", disk=true, count=2, desc="Opponents select secretly",},
   },
   ["9aaffe"] = { name="Provinces",description="Send a Caballero for each\nplayer from Regions to Provinces",
-    court=2, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\neach player on player boards"}, --ok after retesting disk version
+    court=2, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\neach player on player boards"}, --TODO: retest
   },
-
 
   --////////// TESTED ////////////////
 
