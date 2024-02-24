@@ -3,17 +3,10 @@
 --TODO: document, credits, etc.
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
+  -TODO: get rid of wait.condition over use. Fails rewind/reload
+  -TODO: break up scoring coroutine. Make rewind/reload safe.
   -TODO: remove cube from pending move when placed back in origin region, reset things back to original state wrt that cube and origin region.
-  -BUG: during scoring, ties for first should be in the 2nd place but show in 1st.  Probably same issue with ties for 2nd.
-  -TODO: show some kind of "Done" panel in place of "Active" on player board for players who've taken their turn. ???
-  -TODO: save history of scoring regions that can be rewound by player in scoring dialog.  Requires per-player UI and setup at game start.
-  -TODO: mobile score board
-  -TODO: all cards implemented
-  -TODO: castillo placement during special actions that move Caballeros and allow it
   -TODO: destroy unused scoring markers at startup.
-  -TODO: mobile score board images on region objects
-  -TODO: make scoring markers taller for +50 +100 +150, scale y to 3,6,9 respectively
-  -TODO: put score in score marker name (Green 72) also +50, +100, etc. laps in description
 ]]
 env = {}
 env.version = "0.1 Alpha dev"
@@ -300,10 +293,12 @@ function setupGame(player, button, id)
     broadcastToAll("At least 2 players required to play this game")
     return
   end
+  local plist="Pink"
   local n = math.random(#C.table_order)
   for i=1,#C.table_order do
     local pcol = C.table_order[n]
     if contains(seated,pcol) then
+      plist=plist.."|"..pcol
       table.insert(G.d.player_order,pcol)
       G.d.players[pcol] = {
         score = 0,  --TODO more detailed stats for a cool end game report?
@@ -332,6 +327,7 @@ function setupGame(player, button, id)
     end
     if n == #C.table_order then n=1 else n=n+1 end
   end
+  G.d.visibility_all = plist
   if not(G.env.intrigue_king_exp) then
     getObjectFromGUID(C.caballero_deck).destruct()
     getObjectFromGUID(C.intrique_setup_card).destruct()
@@ -343,6 +339,10 @@ function setupGame(player, button, id)
   end
   object_UI_setAttribute(C.board, "regions","active",true)
   object_UI_setAttribute(C.castillo,"info","active",true)
+  UI_setAttribute("scoring_pnl","visibility",G.d.visibility_all)
+  UI_setAttribute("scoring_pnl","active",true)
+  UI_setAttribute("confirm_pnl","visibility","Pink")
+  UI_setAttribute("confirm_pnl","active",true)
   startLuaCoroutine(Global, "createPlayerCubes")
   G.d.started = true
 end
@@ -674,6 +674,7 @@ function processAction(pcol, opt)
   if env.trace then log("processAction() "..tostring(pcol)..", "..tostring(opt)) end
   local pdata = G.d.players[pcol]
   local a = G.d.action
+  a.ignore_wait = false --HACK: This is getting set somewhere. Probably on Court finished. Maybe elsewhere. --TODO: no coro
   if opt == "court" then
     if a.stage == "main" then
       setLockCourt(pcol, false)
@@ -1081,7 +1082,7 @@ function processAction(pcol, opt)
             updatePlayerBoardUI(pcol)
             startScoring(regions,true,s)
             Wait.condition(function()   --TODO: no coro, move to end of runScoring
-              log("exit wait on scoring")
+              log("exit wait on scoring, most/least caballeros")
               a.special_completed = true
               if a.vetoed then a.stage = "main"; undo_ok = false
               elseif a.ignore_wait then log("ignoring wait"); return
@@ -1475,7 +1476,6 @@ function processAction(pcol, opt)
       a.undo.special = {}
       a.special_completed = false
       a.special.origin = nil --HACK: should this be an undo?  not sure why I'm doing this
-      UI_setAttribute("scoring_pnl","active",false) --HACK: should this be an undo?
     elseif a.stage == "waiting" then
       log("processAction(): reset special while waiting")
       --TODO: clean up this mess! why the conditional? move stuff to an undo.special entry??
@@ -2343,7 +2343,6 @@ function playerUndo(pcol)
       end
       updateStatusUI(G.d.status)
     end
-    UI_setAttribute("scoring_pnl","active",false) --HACK: should this be an entry in undo.special?
   elseif G.d.phase == "scoring" then
     if indexOf(G.d.waitlist,pcol) == 0 then table.insert(G.d.waitlist,pcol) end
     for i,e in ipairs(G.d.status.waitlist) do
@@ -2505,7 +2504,8 @@ function undo(u)
     end
     --locate scoring marker
     local m = getObjectFromGUID(C.score_markers[u.pcol])
-    local pos = getScorePos(u.pcol,G.d.players[u.pcol].score)
+    local pos = Vector(C.score_marker_start_pos[u.pcol])
+    if G.d.players[u.pcol].score > 0 then pos = getScorePos(u.pcol,G.d.players[u.pcol].score) end
     pos.y = pos.y + 2
     m.setName(u.pcol.." "..tostring(G.d.players[u.pcol].score))
     local scale = Vector(0.6, 0.6, 0.6)
@@ -2562,23 +2562,38 @@ end
   special: true: this is a special scoring, false: this is a general scoring; default: false
   subtitle: subtitle text to display in a special scoring; default: empty string
 ]]
-function startScoring(regions, special, subtitle)
+function startScoring(regions, special, subtitle) --TODO: (minor) sort the regions list
   if env.trace then log("startScoring() "..tostring(special)) end
   local s_special = special or false
   local s_regions = regions or {1,2,3,4,5,6,7,8,9}
+  local function sortRegions(reg)
+    local temp = nil
+    for _,r in ipairs(reg) do
+      if not(temp) then temp = {r}
+      else
+        local added = false
+        for i,e in ipairs(temp) do if r < e then table.insert(temp,i,r); added=true break end end
+        if not(added) then table.insert(temp,#temp+1,r) end
+      end
+    end
+    return temp
+  end
   local s_castillo = false
   local s_first_only = false
   local s_sub = subtitle or ""
   if contains(s_regions,"castillo") then
     s_castillo = true
     table.remove(s_regions,indexOf(s_regions,"castillo"))
+    if #s_regions > 0 then s_regions = sortRegions(s_regions) end
   elseif contains(s_regions,"first_only") then
     s_first_only = true
     s_regions = {1,2,3,4,5,6,7,8,9}
     s_castillo = false
   else
     s_castillo = not(special)
+    if #s_regions > 0 then s_regions = sortRegions(s_regions) end
   end
+  local s_total_regions_scored = 0
   -- log("Scoring Special: "..tostring(s_special)) --DEBUG
   -- log("Scoring Castillo: "..tostring(s_castillo)) --DEBUG
   -- log("Scoring regions:");log(s_regions) --DEBUG
@@ -2602,11 +2617,14 @@ function startScoring(regions, special, subtitle)
       show = false,
       title = "",
       msg = "",
-      subtitle= nil,
+      region = nil,
+      subtitle = nil,
       scores = nil,
       summary = false,
       button = false,
     }
+    --per player scoring history
+    G.d.scoring_history = {Blue={},Red={},Green={},Purple={},Yellow={}}
     local summary = {}
     if s_special then
       if s_sub ~= "" then
@@ -2657,18 +2675,32 @@ function startScoring(regions, special, subtitle)
           UI_setAttribute("scoring_msg_row","active",true)
           UI_setAttribute("scoring_msg_txt","text",info.msg)
         end
-        if info.scores then
-          h = h + 120
-          for i=1,3 do
-            for _,c in ipairs({"Blue","Red","Green","Purple","Yellow"}) do UI_setAttribute("scoring_"..tostring(i).."_"..c,"active",false) end
-            if #info.scores[i] > 0 then
-              UI_setAttribute("scoring_"..tostring(i).."_pts_txt","text",tostring(info.scores[i][1].points.." pts"))
-              for _,e in ipairs(info.scores[i]) do UI_setAttribute("scoring_"..tostring(i).."_"..e.player,"active",true) end
-            else UI_setAttribute("scoring_"..tostring(i).."_pts_txt","text","0 pts") end
-            UI_setAttribute("scoring_"..tostring(i).."_row","active",true)
+        if info.scores then h = h + 125 end
+        for _,pcol in ipairs({"Blue","Red","Green","Purple","Yellow"}) do
+          if info.region then UI_setAttribute(pcol.."_scoring_region_title_txt","text",info.region)
+          else UI_setAttribute(pcol.."_scoring_region_title_txt","text","") end
+          if info.scores then
+            UI_setAttribute(pcol.."_scoring_region_row","active",true)
+            for i=1,3 do
+              for _,c in ipairs({"Blue","Red","Green","Purple","Yellow"}) do UI_setAttribute(pcol.."_scoring_"..tostring(i).."_"..c,"active",false) end
+              if #info.scores[i] > 0 then
+                UI_setAttribute(pcol.."_scoring_"..tostring(i).."_pts_txt","text",tostring(info.scores[i][1].points.." pts"))
+                for _,e in ipairs(info.scores[i]) do UI_setAttribute(pcol.."_scoring_"..tostring(i).."_"..e.player,"active",true) end
+              else UI_setAttribute(pcol.."_scoring_"..tostring(i).."_pts_txt","text","0 pts") end
+              UI_setAttribute(pcol.."_scoring_"..tostring(i).."_row","active",true)
+            end
+          else
+            for i=1,3 do UI_setAttribute(pcol.."_scoring_"..tostring(i).."_row","active",false) end
+            UI_setAttribute(pcol.."_scoring_region_row","active",false)
           end
-        else
-          for i=1,3 do UI_setAttribute("scoring_"..tostring(i).."_row","active",false) end
+          if info.completed and s_total_regions > 1 then
+            UI_setAttribute(pcol.."_scoring_region_prev","active",true)
+            UI_setAttribute(pcol.."_scoring_region_next","active",false)
+            UI_setAttribute(pcol.."_scoring_region_row","hidden",tostring(s_total_regions_scored))
+          else
+            UI_setAttribute(pcol.."_scoring_region_prev","active",false)
+            UI_setAttribute(pcol.."_scoring_region_next","active",false)
+          end
         end
         if info.summary then
           if info.summary_title then UI_setAttribute("scoring_summary_txt","text",info.summary_title)
@@ -2702,11 +2734,11 @@ function startScoring(regions, special, subtitle)
           UI_setAttribute("scoring_summary_row","active",true)
           h = h + sh
         else UI_setAttribute("scoring_summary_row","active",false) end
-        if info.button then UI_setAttribute("scoring_ack_row","active",true); h = h + 40
-        else UI_setAttribute("scoring_ack_row","active",false) end
+        if info.button then UI_setAttribute("scoring_close_row","active",true); h = h + 40
+        else UI_setAttribute("scoring_close_row","active",false) end
         UI_setAttribute("scoring_pnl","height",tostring(h))
-        UI_setAttribute("scoring_pnl","active",true)
-      else UI_setAttribute("scoring_pnl","active",false) end
+        UI_setAttribute("scoring_pnl","visibility",G.d.visibility_all)
+      else UI_setAttribute("scoring_pnl","visibility","Pink") end
     end
     local function process(scores)
       s_info.scores = {{},{},{},}
@@ -2759,6 +2791,13 @@ function startScoring(regions, special, subtitle)
           end
         end
       end
+      --save the history of this scoring
+      for c,h in pairs(G.d.scoring_history) do
+        if contains(G.d.player_order,c) then
+          table.insert(h,{region=s_info.region,scores=simpleDeepCopy(s_info.scores)})
+        end
+      end
+      s_total_regions_scored = s_total_regions_scored + 1
       -- log("s_info:");log(s_info)
     end
     -- /////////////////// Veto check for a special scoring //////////
@@ -2806,7 +2845,7 @@ function startScoring(regions, special, subtitle)
       end
       -- log("skip castillo is "..tostring(skip_castillo)) --DEBUG
       if skip_castillo then
-        s_info.msg = "No Caballeros in the Castillo to distribute or score"
+        s_info.msg = "No Caballeros in the Castillo"
         s_info.show = true
         updateUI(s_info)
       else
@@ -2865,6 +2904,7 @@ function startScoring(regions, special, subtitle)
         Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
       end
       s_info.msg = "Score the Castillo"
+      s_info.region = "Castillo"
       s_info.scores = {{},{},{},}
       s_info.summary = true
       s_info.show = true
@@ -2884,6 +2924,7 @@ function startScoring(regions, special, subtitle)
       if placement then
         s_info.msg = "Move Caballeros to regions\nWaiting on players to place."
         s_info.scores = nil
+        s_info.region = nil
         s_info.show = true
         updateUI(s_info)
         marker.setLock(false)
@@ -2970,13 +3011,14 @@ function startScoring(regions, special, subtitle)
       getObjectFromGUID(C.region_guids[i]).highlightOn("Yellow")
       local scores = scoreRegion(C.region_guids[i])
       s_info.msg = "Score region "..tostring(i)..": "..G.obj.regions[C.region_guids[i]].name
+      s_info.region = G.obj.regions[C.region_guids[i]].name
       s_info.scores = {{},{},{},}
       s_info.summary = true
       s_info.show = true
       updateUI(s_info)
       pause()
       if #scores == 0 then
-        s_info.msg = s_info.msg.."\nNo Caballeros in the region to score"
+        s_info.msg = s_info.msg.."\nNo Caballeros in the region"
         updateUI(s_info)
         pause(2)
       else
@@ -2986,9 +3028,10 @@ function startScoring(regions, special, subtitle)
       end
       getObjectFromGUID(C.region_guids[i]).highlightOff()
     end
+    log("END OF SCORING")
+    s_info.completed = true
     s_info.msg = "Scoring Finished"
     s_info.summary_title = "Final Summary"
-    s_info.scores = nil
     s_info.summary = true
     s_info.button = true
     s_info.show = true
@@ -3390,24 +3433,67 @@ end
 --]]
 function scoringClick(player, button, id)
   if env.trace then log("scoringClick() "..player.color..", "..id) end
-  --TODO: manage visibility
+  local tmp = UI.getAttribute(player.color.."_scoring_region_row","hidden")
+  local history_index = nil
+  if tmp then history_index = tonumber(tmp) end
+  -- log("History index is "..tostring(history_index))
+  local function updateScoringUI(pcol, info)
+    -- log("updateScoringUI() "..tostring(pcol));log(info)
+    if info.region then UI_setAttribute(pcol.."_scoring_region_title_txt","text",info.region)
+    else UI_setAttribute(pcol.."_scoring_region_title_txt","text","") end
+    if info.scores then
+      UI_setAttribute(pcol.."_scoring_region_row","active",true)
+      for i=1,3 do
+        for _,c in ipairs({"Blue","Red","Green","Purple","Yellow"}) do UI_setAttribute(pcol.."_scoring_"..tostring(i).."_"..c,"active",false) end
+        if #info.scores[i] > 0 then
+          UI_setAttribute(pcol.."_scoring_"..tostring(i).."_pts_txt","text",tostring(info.scores[i][1].points.." pts"))
+          for _,e in ipairs(info.scores[i]) do UI_setAttribute(pcol.."_scoring_"..tostring(i).."_"..e.player,"active",true) end
+        else UI_setAttribute(pcol.."_scoring_"..tostring(i).."_pts_txt","text","0 pts") end
+        UI_setAttribute(pcol.."_scoring_"..tostring(i).."_row","active",true)
+      end
+    else
+      for i=1,3 do UI_setAttribute(pcol.."_scoring_"..tostring(i).."_row","active",false) end
+      UI_setAttribute(pcol.."_scoring_region_row","active",false)
+    end
+    if #info.scores <= 1 then
+      UI_setAttribute(pcol.."_scoring_region_prev","active",false)
+      UI_setAttribute(pcol.."_scoring_region_next","active",false)
+    elseif history_index == #G.d.scoring_history[pcol] then
+      UI_setAttribute(pcol.."_scoring_region_prev","active",true)
+      UI_setAttribute(pcol.."_scoring_region_next","active",false)
+    elseif history_index == 1 then
+      UI_setAttribute(pcol.."_scoring_region_prev","active",false)
+      UI_setAttribute(pcol.."_scoring_region_next","active",true)
+    else
+      UI_setAttribute(pcol.."_scoring_region_prev","active",true)
+      UI_setAttribute(pcol.."_scoring_region_next","active",true)
+    end
+  end
   local target = Split(id,"_")[2]
-  if target == "veto" and player.color ~= G.d.veto then return end
   local action = Split(id,"_")[3]
-  log("scoringClick(): "..tostring(target))
-  log("scoringClick(): "..tostring(action))
+  if target == "scoring" then action = Split(id,"_")[4] end
   if target == "dlg" and action == "close" then
-    UI_setAttribute("scoring_pnl","active",false)
-  elseif target == "veto" and action == "no" then
-    log("scoringClick(): handle decline veto")
-    G.d.veto_waiting = false
-  elseif target == "veto" and action == "yes" then
-    log("scoringClick(): handle veto special scoring")
-    --TODO: trash veto card, reset G.d.veto and player.veto_card
-    G.d.veto_scoring = true
-    G.d.veto_waiting = false
-  elseif target == "history" and action == "prev" then
-  elseif target == "history" and action == "next" then
+    local vis = UI.getAttribute("scoring_pnl","visibility")
+    local new = "Pink"
+    local tmp = Split(vis,"|")
+    for i,c in ipairs(tmp) do if c ~= player.color and c ~= "Pink" then new = new.."|"..c end end
+    UI_setAttribute("scoring_pnl","visibility",new)
+  elseif target == "scoring" and action == "prev" then
+    local pcol = Split(id,"_")[1]
+    assert(history_index, "ERROR: scoringClick(): action=prev, bad history index "..tostring(history_index)) --DEBUG
+    if history_index > 1 then
+      history_index = history_index - 1
+      updateScoringUI(pcol, G.d.scoring_history[pcol][history_index])
+      UI_setAttribute(pcol.."_scoring_region_row","hidden",tostring(history_index))
+    end
+  elseif target == "scoring" and action == "next" then
+    local pcol = Split(id,"_")[1]
+    assert(history_index, "ERROR: scoringClick(): action=next, bad history index "..tostring(history_index)) --DEBUG
+    if history_index < #G.d.scoring_history[pcol] then
+      history_index = history_index + 1
+      updateScoringUI(pcol, G.d.scoring_history[pcol][history_index])
+      UI_setAttribute(pcol.."_scoring_region_row","hidden",tostring(history_index))
+    end
   else
     log("scoringClick(): unhandled action "..id)
   end

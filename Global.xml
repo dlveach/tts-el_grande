@@ -123,7 +123,7 @@
           3rd row of subtitle text to display
         </Text></Cell>
       </Row>
-      <Row id="scoring_msg_row" preferredHeight="80">
+      <Row id="scoring_msg_row" preferredHeight="60">
         <Cell columnSpan="3" padding="5">
           <Text id="scoring_msg_txt" class="M LBrown">
             line 1
@@ -133,53 +133,298 @@
         </Cell>
       </Row>
       <Row id="scoring_veto_row" preferredHeight="80">
-        <Cell columnSpan="3" padding="0 0 0 0">
-          <VerticalLayout>
-            <Text class="M LBrown" id="scoring_veto_msg_txt" text="Veto Special Scoring?"/>
-            <!-- <HorizontalLayout spacing="20" padding="50 50 0 0">
-              <Button id="scoring_veto_no" text="No" onClick="scoringClick"/>
-              <Button id="scoring_veto_yes" text="Yes" onClick="scoringClick"/>
-            </HorizontalLayout> -->
-          </VerticalLayout>
+        <Cell columnSpan="3" padding="5">
+          <Text class="M LBrown" id="scoring_veto_msg_txt" text="Veto Special Scoring?"/>
         </Cell>
       </Row>
-      <Row id="scoring_1_row" preferredHeight="40">
-        <Cell><Text class="M Gray" text="1st:"/></Cell>
-        <Cell><Text id="scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
-        <Cell padding="10 15 5 5">
-          <HorizontalLayout>
-            <Panel><Panel id="scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
-            <Panel><Panel id="scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
-            <Panel><Panel id="scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
-            <Panel><Panel id="scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
-            <Panel><Panel id="scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
-          </HorizontalLayout>
+      <Row id="Blue_scoring_region_row" preferredHeight="145" visibility="Blue">
+        <Cell columnSpan="3">
+          <TableLayout columnWidths="50 50 140">
+            <Row preferredHeight="25">
+              <Cell columnSpan="3" padding="10 10 0 0">
+                <Panel class="Light Title">
+                  <Panel rectAlignment="MiddleLeft" width="35" padding="10 0 0 0">
+                    <Image id="Blue_scoring_region_prev" image="Sprites/Icons/Arrow_Left" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                  <Text rectAlignment="MiddleCenter" id="Blue_scoring_region_title_txt" class="M LGray" text="Region Name"/>
+                  <Panel rectAlignment="MiddleRight" width="35" padding="0 10 0 0">
+                    <Image id="Blue_scoring_region_next" image="Sprites/Icons/Arrow_Right" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="Blue_scoring_1_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="1st:"/></Cell>
+              <Cell><Text id="Blue_scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Blue_scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Blue_scoring_2_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="2nd:"/></Cell>
+              <Cell><Text id="Blue_scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Blue_scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Blue_scoring_3_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="3rd:"/></Cell>
+              <Cell><Text id="Blue_scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Blue_scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Blue_scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+          </TableLayout>
         </Cell>
       </Row>
-      <Row id="scoring_2_row" preferredHeight="40">
-        <Cell><Text class="M Gray" text="2nd:"/></Cell>
-        <Cell><Text id="scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
-        <Cell padding="10 15 5 5">
-          <HorizontalLayout>
-            <Panel><Panel id="scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
-            <Panel><Panel id="scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
-            <Panel><Panel id="scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
-            <Panel><Panel id="scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
-            <Panel><Panel id="scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
-          </HorizontalLayout>
+      <Row id="Red_scoring_region_row" preferredHeight="145" visibility="Red">
+        <Cell columnSpan="3">
+          <TableLayout columnWidths="50 50 140">
+            <Row preferredHeight="25">
+              <Cell columnSpan="3" padding="10 10 0 0">
+                <Panel class="Light Title">
+                  <Panel rectAlignment="MiddleLeft" width="35" padding="10 0 0 0">
+                    <Image id="Red_scoring_region_prev" image="Sprites/Icons/Arrow_Left" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                  <Text rectAlignment="MiddleCenter" id="Red_scoring_region_title_txt" class="M LGray" text="Region Name"/>
+                  <Panel rectAlignment="MiddleRight" width="35" padding="0 10 0 0">
+                    <Image id="Red_scoring_region_next" image="Sprites/Icons/Arrow_Right" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="Red_scoring_1_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="1st:"/></Cell>
+              <Cell><Text id="Red_scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Red_scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Red_scoring_2_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="2nd:"/></Cell>
+              <Cell><Text id="Red_scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Red_scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Red_scoring_3_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="3rd:"/></Cell>
+              <Cell><Text id="Red_scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Red_scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Red_scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+          </TableLayout>
         </Cell>
       </Row>
-      <Row id="scoring_3_row" preferredHeight="40">
-        <Cell><Text class="M Gray" text="3rd:"/></Cell>
-        <Cell><Text id="scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
-        <Cell padding="10 15 5 5">
-          <HorizontalLayout>
-            <Panel><Panel id="scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
-            <Panel><Panel id="scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
-            <Panel><Panel id="scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
-            <Panel><Panel id="scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
-            <Panel><Panel id="scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
-          </HorizontalLayout>
+      <Row id="Green_scoring_region_row" preferredHeight="145" visibility="Green">
+        <Cell columnSpan="3">
+          <TableLayout columnWidths="50 50 140">
+            <Row preferredHeight="25">
+              <Cell columnSpan="3" padding="10 10 0 0">
+                <Panel class="Light Title">
+                  <Panel rectAlignment="MiddleLeft" width="35" padding="10 0 0 0">
+                    <Image id="Green_scoring_region_prev" image="Sprites/Icons/Arrow_Left" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                  <Text rectAlignment="MiddleCenter" id="Green_scoring_region_title_txt" class="M LGray" text="Region Name"/>
+                  <Panel rectAlignment="MiddleRight" width="35" padding="0 10 0 0">
+                    <Image id="Green_scoring_region_next" image="Sprites/Icons/Arrow_Right" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="Green_scoring_1_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="1st:"/></Cell>
+              <Cell><Text id="Green_scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Green_scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Green_scoring_2_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="2nd:"/></Cell>
+              <Cell><Text id="Green_scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Green_scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Green_scoring_3_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="3rd:"/></Cell>
+              <Cell><Text id="Green_scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Green_scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Green_scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+          </TableLayout>
+        </Cell>
+      </Row>
+      <Row id="Purple_scoring_region_row" preferredHeight="145" visibility="Purple">
+        <Cell columnSpan="3">
+          <TableLayout columnWidths="50 50 140">
+            <Row preferredHeight="25">
+              <Cell columnSpan="3" padding="10 10 0 0">
+                <Panel class="Light Title">
+                  <Panel rectAlignment="MiddleLeft" width="35" padding="10 0 0 0">
+                    <Image id="Purple_scoring_region_prev" image="Sprites/Icons/Arrow_Left" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                  <Text rectAlignment="MiddleCenter" id="Purple_scoring_region_title_txt" class="M LGray" text="Region Name"/>
+                  <Panel rectAlignment="MiddleRight" width="35" padding="0 10 0 0">
+                    <Image id="Purple_scoring_region_next" image="Sprites/Icons/Arrow_Right" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="Purple_scoring_1_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="1st:"/></Cell>
+              <Cell><Text id="Purple_scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Purple_scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Purple_scoring_2_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="2nd:"/></Cell>
+              <Cell><Text id="Purple_scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Purple_scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Purple_scoring_3_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="3rd:"/></Cell>
+              <Cell><Text id="Purple_scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Purple_scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Purple_scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+          </TableLayout>
+        </Cell>
+      </Row>
+      <Row id="Yellow_scoring_region_row" preferredHeight="145" visibility="Yellow">
+        <Cell columnSpan="3">
+          <TableLayout columnWidths="50 50 140">
+            <Row preferredHeight="25">
+              <Cell columnSpan="3" padding="10 10 0 0">
+                <Panel class="Light Title">
+                  <Panel rectAlignment="MiddleLeft" width="35" padding="10 0 0 0">
+                    <Image id="Yellow_scoring_region_prev" image="Sprites/Icons/Arrow_Left" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                  <Text rectAlignment="MiddleCenter" id="Yellow_scoring_region_title_txt" class="M LGray" text="Region Name"/>
+                  <Panel rectAlignment="MiddleRight" width="35" padding="0 10 0 0">
+                    <Image id="Yellow_scoring_region_next" image="Sprites/Icons/Arrow_Right" color="rgb(0.8,0.8,0)" onClick="scoringClick"/>
+                  </Panel>
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="Yellow_scoring_1_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="1st:"/></Cell>
+              <Cell><Text id="Yellow_scoring_1_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Yellow_scoring_1_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_1_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_1_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_1_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_1_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Yellow_scoring_2_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="2nd:"/></Cell>
+              <Cell><Text id="Yellow_scoring_2_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Yellow_scoring_2_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_2_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_2_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_2_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_2_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+            <Row id="Yellow_scoring_3_row" preferredHeight="40">
+              <Cell><Text class="M Gray" text="3rd:"/></Cell>
+              <Cell><Text id="Yellow_scoring_3_pts_txt" class="M" text="00 pts"/></Cell>
+              <Cell padding="10 15 5 5">
+                <HorizontalLayout>
+                  <Panel><Panel id="Yellow_scoring_3_Blue" class="base" color="Blue"><Text class="M" text="B"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_3_Red" class="base" color="Red"><Text class="M" text="R"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_3_Green" class="base" color="Green"><Text class="M" text="G"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_3_Purple" class="base" color="Purple"><Text class="M" text="P"/></Panel></Panel>
+                  <Panel><Panel id="Yellow_scoring_3_Yellow" class="base" color="Yellow"><Text class="M" text="Y"/></Panel></Panel>
+                </HorizontalLayout>
+              </Cell>
+            </Row>
+          </TableLayout>
         </Cell>
       </Row>
       <Row id="scoring_summary_row" preferredHeight="185">
@@ -223,7 +468,7 @@
           </TableLayout>
         </Cell>
       </Row>
-      <Row id="scoring_ack_row" active="false" preferredHeight="40">
+      <Row id="scoring_close_row" active="false" preferredHeight="40">
         <Cell padding="60 60 10 0" columnSpan="3">
           <Button id="scoring_dlg_close" fontSize="14" text="Close" onClick="scoringClick"/>
         </Cell>
