@@ -18,7 +18,7 @@ env.debug = false
 env.trace = true
 env.trace2 = false
 -- env.test_players = {"Blue","Red","Green","Purple","Yellow"}
-env.test_players = {"Green","Red","Purple",}
+env.test_players = {"Red","Purple",}
 env.in_dev = false --leave some objects interactable for dev purposes.
 env.use_saved_data = true
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
@@ -62,6 +62,7 @@ function onLoad(saved_data)
     local o = getObjectFromGUID(C.trash)
     o.interactable = false
     o.setInvisibleTo(Player.getAvailableColors())
+    o=getObjectFromGUID(C.table_extension); if o then o.interactable=false end
   end
   if not(env.use_saved_data) then saved_data = "" end
   if saved_data ~= "" then
@@ -332,9 +333,53 @@ function setupGame(player, button, id)
     if n == #C.table_order then n=1 else n=n+1 end
   end
   G.d.visibility_all = plist
-  if not(G.env.intrigue_king_exp) then
+  -- Handle game expansion options selected
+  if G.env.intrigue_king_exp then
+    log("setupGame() TODO: handle Intrique and the King expansion")
+  else
     getObjectFromGUID(C.caballero_deck).destruct()
     getObjectFromGUID(C.intrique_setup_card).destruct()
+    getObjectFromGUID(C.table_extension).destruct()
+    for _,c in ipairs(C.table_order) do
+      -- getObjectFromGUID(C.decks[c]).destruct()
+      local t = Player[c].getHandTransform()
+      t.position.z = -40.5
+      Player[c].setHandTransform(t)
+    end
+  end
+  if G.env.grandissimo_exp then
+    log("setupGame() TODO: handle Grandissimo expansion")
+  end
+  if G.env.inquisitor_colonies_exp then
+    log("setupGame() TODO: handle Inquisitor and Colonies expansion")
+  end
+  G.d.MSB = {}
+  local n = #G.d.player_order
+  G.d.scoring_mask = nil
+  for g,d in pairs(C.mobile_score_boards) do
+    G.d.MSB[g] = {scoring=d.scoring, home_pos=d.home_pos, image=d.image}
+    if n == 2 then
+      G.d.MSB[g].image = d.image_2p
+      local o = getObjectFromGUID(g)
+      o.setCustomObject({image=d.url_2p})
+      o.reload()
+      if not(G.d.scoring_mask) then G.d.scoring_mask = "MSB_2p_mask" end
+    elseif n == 3 then
+      G.d.MSB[g].image = d.image_3p
+      local o = getObjectFromGUID(g)
+      o.setCustomObject({image=d.url_3p})
+      o.reload()
+      if not(G.d.scoring_mask) then G.d.scoring_mask = "MSB_3p_mask" end
+    end
+  end
+  --set scoring masks for 2 or 3 players
+  if G.d.scoring_mask then
+    for g,_ in pairs(G.obj.regions) do
+      object_UI_setAttribute(g,"mb_image","image",G.d.scoring_mask)
+      object_UI_setAttribute(g,"mb_panel","active",true)
+    end
+    object_UI_setAttribute(C.board,"mb_image","image",G.d.scoring_mask)
+    object_UI_setAttribute(C.board,"mb_panel","active",true)
   end
   --setup bid buttons
   for g,e in pairs(G.obj.bid_buttons) do
@@ -1020,7 +1065,7 @@ function processAction(pcol, opt)
         setLockCourt(pcol,false)
       elseif a.special.id == "mobile_score_board" then
         a.score_boards = {}
-        for g,_ in pairs(C.mobile_score_boards) do
+        for g,_ in pairs(G.d.MSB) do
           local locked = false; for _,r in pairs(G.obj.regions) do
             if r.score_board == g and r.king then locked = true; break end
           end
@@ -1689,7 +1734,8 @@ function addScoreBoard(region, guid)
         if g ~= region and rd.score_board == guid then
           debug("moving from another region, reset that region")
           rd.score_board = false
-          object_UI_setAttribute(g, "mb_panel", "active", false)
+          if G.d.scoring_mask then object_UI_setAttribute(g, "mb_image", "image", G.d.scoring_mask)
+          else object_UI_setAttribute(g, "mb_panel", "active", false) end
           rd.scoring = simpleDeepCopy(C.regions_template[g].scoring)
           origin = g
           break
@@ -1698,21 +1744,21 @@ function addScoreBoard(region, guid)
     end
     --set in new region
     rdata.score_board = guid
-    rdata.scoring = simpleDeepCopy(C.mobile_score_boards[guid].scoring)
+    rdata.scoring = simpleDeepCopy(G.d.MSB[guid].scoring)
     --place scoreboard under region status panel or on castillo
     if region == "castillo" then pos = C.castillo_mb_position
     else pos = C.score_board_positions[indexOf(C.region_guids,region)] end
     local o = getObjectFromGUID(guid)
     o.setPosition(pos)
     Wait.condition(function()
-      for g,_ in pairs(C.mobile_score_boards) do getObjectFromGUID(g).setLock(true) end
+      for g,_ in pairs(G.d.MSB) do getObjectFromGUID(g).setLock(true) end
     end, function() return o.resting end)
     --set the undo data and update object snaps
     G.d.action.undo.special[guid]={id="scoreboard",g=guid,region=region,origin=origin,replace=replace,snap=G.obj.snaps[guid]}
     G.obj.snaps[guid] = pos
     if region ~= "castillo" then
-      debug("setting mb_image to "..tostring(C.mobile_score_boards[guid].image))
-      object_UI_setAttribute(region, "mb_image", "image", C.mobile_score_boards[guid].image)
+      debug("setting mb_image to "..tostring(G.d.MSB[guid].image))
+      object_UI_setAttribute(region, "mb_image", "image", G.d.MSB[guid].image)
       object_UI_setAttribute(region, "mb_panel", "active", true)
     end
     updateBoardUI()
@@ -2388,20 +2434,21 @@ function undo(u)
       rdata.scoring = simpleDeepCopy(C.castillo_template.scoring)
     else
       rdata.scoring = simpleDeepCopy(C.regions_template[u.region].scoring)
-      object_UI_setAttribute(u.region, "mb_panel", "active", false)
+      if G.d.scoring_mask then object_UI_setAttribute(u.region, "mb_image", "image", G.d.scoring_mask)
+      else object_UI_setAttribute(u.region, "mb_panel", "active", false) end
     end
     rdata.score_board = false
     G.obj.snaps[u.g]=u.snap
     --handle an origin if any
     if u.origin then
       if u.origin == "castillo" then
-        G.obj.castillo.scoring = simpleDeepCopy(C.mobile_score_boards[u.g].scoring)
+        G.obj.castillo.scoring = simpleDeepCopy(G.d.MSB[u.g].scoring)
         G.obj.castillo.score_board = u.g
       else
         local r = G.obj.regions[u.origin]
         r.score_board = u.g
-        r.scoring = simpleDeepCopy(C.mobile_score_boards[u.g].scoring)
-        object_UI_setAttribute(u.origin, "mb_image", "image", C.mobile_score_boards[u.g].image)
+        r.scoring = simpleDeepCopy(G.d.MSB[u.g].scoring)
+        object_UI_setAttribute(u.origin, "mb_image", "image", G.d.MSB[u.g].image)
         object_UI_setAttribute(u.origin, "mb_panel", "active", true)
       end
     end

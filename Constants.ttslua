@@ -9,9 +9,16 @@ C.stacks={"e4530b","d81048","1baff8","f8d8b2","a57d8a",}
 C.player_boards={Blue="01cf4f",Red="40aa3a",Green="5688f0",Purple="7289a1",Yellow="edd3ca",}
 C.trash="595833"
 C.king="a0789f"
+C.table_extension="fd81d6"
 C.mobile_score_boards={
-  ["c1e157"]={scoring={8,4,0}, home_pos={50.12, 1.01, -8.92}, image="MSB840"},
-  ["c03bf9"]={scoring={4,0,0}, home_pos={50.13, 1.01, -12.71}, image="MSB400"},
+  ["c1e157"]={scoring={8,4,0}, home_pos={50.12, 1.01, -8.92}, image="MSB840",
+    image_3p = "MSB840_3p", url_3p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501857/B8ABEEF122795038E08CD652B7B2C8B2FC85ACA0/",
+    image_2p = "MSB840_2p", url_2p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501820/706E6B46A4D6F7A99F5F34A7CB1D2480B19A73C0/",
+  },
+  ["c03bf9"]={scoring={4,0,0}, home_pos={50.13, 1.01, -12.71}, image="MSB400",
+    image_3p = "MSB400_3p", url_3p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501738/DB1BA2B640A7EEAAC0C845011650E2F1BC00E092/",
+    image_2p = "MSB400_2p", url_2p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501785/C98F396398C9003A70EDA4922ABF826336E6AFEF/",
+  },
 }
 --Intrigue expansion
 C.caballero_deck = "39a2b3"

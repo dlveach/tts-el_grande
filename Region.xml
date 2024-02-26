@@ -1,0 +1,5 @@
+<XmlLayout>
+  <Panel height="50" id="mb_panel" color="rgba(0,0,0,0)" position="-113 -39 -7" raycastTarget="false" rotation="0 0 180" width="108" scale="1 1" active="false">
+    <Image color="#E3C8B3" id="mb_image" image="MB840" preserveAspect="true" />
+  </Panel>
+</XmlLayout>
