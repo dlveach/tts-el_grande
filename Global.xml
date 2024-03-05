@@ -6,7 +6,7 @@
 <Defaults>
   <!-- <Toggle textColor="rgb(0.8,0.8,0.8)" /> -->
   <Toggle tooltipTextColor="rgb(0.8,0.8,0)" tooltipBorderColor="rgb(0.7,0.7,0)" tooltipBackgroundImage="Sprites/Layout/Outline"
-    tooltipBackgroundColor="rgba(0,0,0,1)" tooltipPosition="Above" tooltipOffset="-15" />
+    tooltipBackgroundColor="rgba(0,0,0,1)" tooltipPosition="Right" tooltipOffset="-60" />
   <Toggle textColor="#eab676" colors="#803e13|rgb(0.8,0.4,0)|rgb(0.8,0.4,0)|Gray" />
 </Defaults>
 
@@ -26,10 +26,10 @@
             <Toggle id="verbose" onValueChanged="startOptions" isOn="true" text="  Verbose game messages"
               tooltip="Be verbose with notifications" />
             <Toggle id="short" onValueChanged="startOptions" isOn="false" text="  Short game"
-              tooltip="Skip rounds 1, 4, and 7 for 6 rounds vs 9"/>
+              tooltip="Skip rounds 1, 4, and 7 for a 6 round game vs 9 rounds"/>
             <Text color="rgb(0.8,0.4,0)" fontSize="16" alignment="LowerCenter" text="Expansions:               "/>
-            <Toggle id="intrique_king" onValueChanged="startOptions"  isOn="false" text="  Intrigue and the King expansion"
-              tooltip="Not yet implemented" />
+            <Toggle id="intrigue_king" onValueChanged="startOptions"  isOn="false" text="  Intrigue and the King expansion"
+              tooltip="Under construction, not fully functional" />
             <Toggle id="grandissimo" onValueChanged="startOptions"  isOn="false" text="  Grandissimo expansion"
               tooltip="Not yet implemented" />
             <Toggle id="inquisitor_colonies" onValueChanged="startOptions"  isOn="false" text="  Inquisitor and Colonies expansion"

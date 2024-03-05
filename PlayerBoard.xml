@@ -26,6 +26,9 @@
       <Row id="skip_row" preferredHeight="65" active="false">
         <Cell padding="20 20 10 15"><Button id="skip" active="false" onClick="Global/playerButton" text="Skip"/></Cell>
       </Row>
+      <Row id="card_select_row" preferredHeight="65" active="false">
+        <Cell><Text id="card_select_txt" class="Title" fontSize="28" text=""/></Cell>
+      </Row>
       <Row id="done_row" preferredHeight="65">
         <Cell padding="20 20 10 15"><Button id="done" active="false" onClick="Global/playerButton" text="Done"/></Cell>
       </Row>
@@ -56,11 +59,45 @@
       <Row id="action_special_row" active="false" preferredHeight="60">
         <Cell padding="10 10 5 5">
           <Panel id="action_special_pnl">
-            <Button id="action_special" class="action" text="Special Action" />
+            <Button id="action_special" class="action" text="Special" />
           </Panel>
           <Panel id="action_special_finished" active="false">
             <Text class="M LGray" text="Special Completed"/>
           </Panel>
+        </Cell>
+      </Row>
+      <Row id="action_IK_row" active="false" preferredHeight="120">
+        <Cell padding="20 20 0 0">
+          <TableLayout>
+            <Row preferredHeight="40">
+              <Cell>
+                <Panel id="action_IK_caballero_pnl">
+                  <Button id="action_IK_court" class="action" text="Caballero" />
+                </Panel>
+              </Cell>
+            </Row>
+            <Row preferredHeight="40">
+              <Cell>
+                <Panel id="action_IK_special_pnl">
+                  <Button id="action_IK_special" class="action" text="Special" />
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="action_IK_king_row" active="false" preferredHeight="40">
+              <Cell>
+                <Panel id="action_IK_king_pnl" active="false">
+                  <Button id="action_IK_king" class="action" text="King" />
+                </Panel>
+              </Cell>
+            </Row>
+            <Row id="action_IK_intrigue_row" preferredHeight="40">
+              <Cell>
+                <Panel id="action_IK_intrigue_pnl" active="false">
+                  <Button id="action_IK_intrigue" class="action" text="Intrigue" />
+                </Panel>
+              </Cell>
+            </Row>
+          </TableLayout>
         </Cell>
       </Row>
       <Row id="action_stage_row" active="false" preferredHeight="120">

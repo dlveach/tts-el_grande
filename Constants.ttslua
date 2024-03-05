@@ -1,33 +1,47 @@
 C={}
 
---[[ GUIDs]]
+--[[ GUIDs ]]
 C.board="dcccbf"
 C.castillo="53146e"
 C.castillo_base="797bfd"
 C.round_marker="a7746e"
-C.stacks={"e4530b","d81048","1baff8","f8d8b2","a57d8a",}
 C.player_boards={Blue="01cf4f",Red="40aa3a",Green="5688f0",Purple="7289a1",Yellow="edd3ca",}
 C.trash="595833"
-C.king="a0789f"
 C.table_extension="fd81d6"
 C.mobile_score_boards={
-  ["c1e157"]={scoring={8,4,0}, home_pos={50.12, 1.01, -8.92}, image="MSB840",
+  ["c8ccec"]={scoring={8,4,0}, home_pos={50.12, 1.01, -8.92}, image="MSB840",
     image_3p = "MSB840_3p", url_3p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501857/B8ABEEF122795038E08CD652B7B2C8B2FC85ACA0/",
     image_2p = "MSB840_2p", url_2p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501820/706E6B46A4D6F7A99F5F34A7CB1D2480B19A73C0/",
   },
-  ["c03bf9"]={scoring={4,0,0}, home_pos={50.13, 1.01, -12.71}, image="MSB400",
+  ["2ce66c"]={scoring={4,0,0}, home_pos={50.13, 1.01, -12.71}, image="MSB400",
     image_3p = "MSB400_3p", url_3p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501738/DB1BA2B640A7EEAAC0C845011650E2F1BC00E092/",
     image_2p = "MSB400_2p", url_2p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501785/C98F396398C9003A70EDA4922ABF826336E6AFEF/",
   },
 }
---Intrigue expansion
-C.caballero_deck = "39a2b3"
-C.decks={Blue="dade1b",Red="9c36f4",Green="634e7c",Purple="7e16a2",Yellow="118ba3",}
-C.intrique_setup_card="eab5b7"
---[[ Game data ]]
+--[[ Base Game stuffs ]]
+C.king="a0789f"
+C.stacks={"e4530b","d81048","1baff8","f8d8b2","a57d8a",}
+C.hand_base_game_z = -40.5 --z position of player hands in base game
+--[[ General stuffs ]]
 C.table_order={"Yellow","Purple","Green","Red","Blue"}
 C.card_button={
   click_function="cardClick",
+  function_owner=Global,
+  position={0,1,0},
+  width=800,
+  height=1000,
+  color={r=0,g=0,b=0,a=0},
+}
+C.region_button={
+  click_function="regionClick",
+  function_owner=Global,
+  position={0,1,0},
+  width=800,
+  height=1000,
+  color={r=0,g=0,b=0,a=0},
+}
+C.playerBoard_button={
+  click_function="playerBoardClick",
   function_owner=Global,
   position={0,1,0},
   width=800,
@@ -49,7 +63,7 @@ C.score_board_positions={
   {38.87, 1.2, 28.95},
   {50.69, 1.2, 28.95},
 }
-C.castillo_mb_position = {26.78, 1.11, -1.30}
+C.castillo_mb_position = {26.76, 1.11, -1.30}
 C.king_card_position={-40.13, 0.97, 14.84}
 C.round_marker_positions={
   {-27.37, 1.60, 10.82},
@@ -194,3 +208,18 @@ for N > 50 use N=N - 50 and repeat above
 ]]
 C.delta_Z=-2.86
 C.delta_X=-2.83
+--[[ Intrique and the King expansion stuffs ]]
+-- scale in play: 1.6, scale returned: 1.87
+C.IK = {
+  setup_card="eab5b7",
+  setup_deck = "404f97",
+  setup_caballero_cards={[2]={4,2},[3]={5,3,1},[4]={5,4,2,1},[5]={5,4,3,2,1}},
+  king="e3c9cc",
+  king_pos={40, 1, 21.59},
+  intrigue="0b00c5",
+  intrigue_pos={40, 1, -19.84},
+  caballero_cards={"8afed5","53c14e","8df350","dd8857","083d68",},
+  caballero_pos={{40, 1, -12.65},{40, 1, -5.86},{40, 1, 1.03},{40, 1, 7.92},{40, 1, 14.87},},
+  decks={Blue="72374f",Red="31c271",Green="98ed18",Purple="bc4b7e",Yellow="335233",},
+  pb_card_pos={{1.14,-0.13,1.63},{0.37,-0.13,1.63},{-0.40,-0.13,1.63},{-1.16,-0.13,1.63}},
+}

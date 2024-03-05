@@ -32,6 +32,16 @@ function onLoad(saved_data)
     stage_finished.attributes.id = color.."_stage_finished"
     local stage_reset = getXmlElement("stage_reset",xml)
     stage_reset.attributes.id = color.."_stage_reset"
+
+    local stage_reset = getXmlElement("action_IK_court",xml)
+    stage_reset.attributes.id = color.."_action_IK_court"
+    local stage_reset = getXmlElement("action_IK_special",xml)
+    stage_reset.attributes.id = color.."_action_IK_special"
+    local stage_reset = getXmlElement("action_IK_king",xml)
+    stage_reset.attributes.id = color.."_action_IK_king"
+    local stage_reset = getXmlElement("action_IK_intrigue",xml)
+    stage_reset.attributes.id = color.."_action_IK_intrigue"
+
     --save back xml
     self.UI.setXmlTable(xml)
     if env.trace then log("Player board "..color.." loaded") end
