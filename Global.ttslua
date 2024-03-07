@@ -3,6 +3,7 @@
 --TODO: document, credits, etc.
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
+  -BUG: I&K card 15: moved cube court to board.  Then moved that cube to Castillo.  Undo fails, cannot locate object.  Undo not being updated for Castillo.
   -DONE: get rid of wait.condition over use. Fails rewind/reload
   -TODO: retest Veto now that wait.condition over use is better
   -TODO: get rid of 'ignore_wait' flag when sure that coros are all safe
@@ -18,7 +19,7 @@ env.debug = false
 env.trace = true
 env.trace2 = false
 -- env.test_players = {"Blue","Red","Green","Purple","Yellow"}
-env.test_players = {"Green","Purple",}
+env.test_players = {"Red","Green","Purple",}
 env.in_dev = false --leave some objects interactable for dev purposes.
 env.use_saved_data = true
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
@@ -850,6 +851,7 @@ function startActionPhase()
       o.setScale({1.6,1,1.6})
       Wait.condition(function() o.setLock(true) end, function() return o.resting end)
       pdata.court_limit = indexOf(C.IK.caballero_cards,o.getGUID())
+      local cards = 1
       if i == 1 then
         --give king card
         local o=getObjectFromGUID(C.IK.king)
@@ -859,6 +861,7 @@ function startActionPhase()
         Wait.condition(function() o.setLock(true) end, function() return o.resting end)
         pdata.IK_king_card = o.getGUID()
         pdata.IK_intrigue_card = nil
+        cards = 2
       elseif i == #G.d.player_order then
         --give intrigue card
         local o=getObjectFromGUID(C.IK.intrigue)
@@ -868,9 +871,31 @@ function startActionPhase()
         Wait.condition(function() o.setLock(true) end, function() return o.resting end)
         pdata.IK_king_card = nil
         pdata.IK_intrigue_card = o.getGUID()
+        cards = 2
       else
         pdata.IK_king_card = nil
         pdata.IK_intrigue_card = nil
+      end
+      --Handle special cards that are held, delayed etc.
+      if cinfo.special.hold_card then
+        log("---TODO: place card in holding area")
+        if pdata.held_cards then table.insert(pdata.held_cards,pdata.power_card)
+        else pdata.held_cards = {pdata.power_card} end
+        if cards + #pdata.held_cards <= #C.IK.pb_card_pos then
+          local pos = board.positionToWorld(C.IK.pb_card_pos[cards + #pdata.held_cards])
+          local o = getObjectFromGUID(pdata.power_card)
+          o.setPosition(pos)
+          Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+          table.remove(pdata.power_cards,indexOf(pdata.power_cards,o.getGUID()))
+
+          --TODO: set flags in action and/or player for delayed effect of card power
+          if power_cards[o.value].special.id == "espionage" then
+            pdata.espionage = o.getGUID()
+          end
+
+        else
+          assert(false,"startActionPhase(): unable to place held card, too many for number of locations!") --TODO: handle this better
+        end
       end
     end
     startPlayerActions(G.d.active_player)
@@ -964,6 +989,10 @@ function startPlayerActions(pcol)
         a.special = {}
         a.IK.special.completed = true
         if cinfo.special.target == "court" and cinfo.special.any_region then a.court_any_region = true end
+      elseif cinfo.special.hold_card then
+        pdata.IK_special_action = false
+        a.special = {}
+        a.IK.special.completed = true
       else
         pdata.IK_special_action = true
       end
@@ -1639,6 +1668,33 @@ function doSpecial(pcol)
     a.special = simpleDeepCopy(IK_intrigue.special)
     a.special.IK = "special" --this the special, not the Intrigue card action
     doSpecial(pcol)
+  elseif special.id == "IK_coup" then
+    log("executing immediate special "..special.id)
+    a.stage = "special"
+    local castillo = getObjectFromGUID(C.castillo)
+    for p,pd in pairs(G.d.players) do
+      if p ~= a.player then
+        --check for king
+        local taboo = false
+        for _,r in pairs(G.obj.regions) do
+          if r.grandes[p] and r.king then log(p.." skipped, King is taboo"); taboo = true; break
+          else r.grandes[p] = false end
+        end
+        if not(taboo) then
+          local grande = getObjectFromGUID(pd.grande)
+          castillo.putObject(grande)
+          G.obj.castillo.grandes[p] = pd.grande
+        end
+      end
+    end
+    a.stage_status = "Special completed"
+    a.IK.special.completed = true
+    pdata.disable_reset = false
+    pdata.allow_undo = true
+    pdata.undo_button = true
+    pdata.done_button = true
+    pdata.action_ui = true
+    updatePlayerBoardUI(pcol)
   else
     log("ERROR: processAction() unhandled special id"); return --DEBUG
   end
@@ -1676,18 +1732,19 @@ function addCaballero(player, region, color, guid)
     end
     return false
   end
-  if rdata.king then return false end
+  if rdata.king then debug("failed king region is taboo"); return false end
   if G.d.phase == "placement" then add()
   elseif G.d.phase == "actions" then
     local a = G.d.action
     local allowed, any_region, min, max, total, each, opp, any, either, origin = false, false, nil, nil, nil, false, false, false, false, nil
     if a.stage == "waiting" then
-      --special case during staged cube placement with no und (i.e. Evict).  There may be others.
+      --special case during staged cube placement with no undo (i.e. Evict).  There may be others.
       local dest = C.region_guids[G.d.players[color].selected_region]
       if region ~= dest then debug("failed destination check during castillo placement"); return false end
       if indexOf(G.d.players[color].staged_cubes,guid) > 0 then
-        table.remove(G.d.players[color].staged_cubes,indexOf(G.d.players[color].staged_cubes,guid))
-        if #G.d.players[color].staged_cubes == 0 then
+        local i = indexOf(G.d.players[color].cubes_to_place,guid)
+        if i > 0 then table.remove(G.d.players[color].cubes_to_place,i) end
+        if #G.d.players[color].cubes_to_place == 0 then
           G.d.players[color].disk_button = false
           G.d.players[color].undo_button = false
           G.d.players[color].done_button = true
@@ -1822,11 +1879,14 @@ function addCaballero(player, region, color, guid)
     end
     add()
   elseif G.d.phase == "scoring" then
-    local dest = C.region_guids[G.d.players[color].selected_region]
-    if region ~= dest then debug("failed destination check during castillo placement"); return false end
+    if not(G.d.players[color].espionage) then
+      local dest = C.region_guids[G.d.players[color].selected_region]
+      if region ~= dest then debug("failed destination check during castillo placement"); return false end
+    end
     if indexOf(G.d.players[color].staged_cubes,guid) > 0 then
-      table.remove(G.d.players[color].staged_cubes,indexOf(G.d.players[color].staged_cubes,guid))
-      if #G.d.players[color].staged_cubes == 0 then
+      local i = indexOf(G.d.players[color].cubes_to_place,guid)
+      if i > 0 then table.remove(G.d.players[color].cubes_to_place,i) end
+      if #G.d.players[color].cubes_to_place == 0 then
         G.d.players[color].disk_button = false
         G.d.players[color].undo_button = false
         G.d.players[color].done_button = true
@@ -1910,8 +1970,27 @@ function setGrande(region, color)
       a.undo["special"][guid]={id="move_grande",g=guid,region=region,origin=old,snap=G.obj.snaps[guid]}
     end
     add()
-  elseif G.d.phase == "castillo" then
-    --TODO: just return true when auto placing from the castillo during scoring? (TODO: can grande be there?)
+  elseif G.d.phase == "scoring" then
+    --TODO: just return true when auto placing from the castillo during scoring?
+    debug("set Grande during scoring")
+    if not(G.d.players[color].espionage) then
+      local dest = C.region_guids[G.d.players[color].selected_region]
+      if region ~= dest then debug("failed destination check during castillo placement"); return false end
+    end
+    if indexOf(G.d.players[color].staged_cubes,guid) > 0 then
+      local i = indexOf(G.d.players[color].cubes_to_place,guid)
+      if i > 0 then table.remove(G.d.players[color].cubes_to_place,i) end
+      if #G.d.players[color].cubes_to_place == 0 then
+        G.d.players[color].disk_button = false
+        G.d.players[color].undo_button = false
+        G.d.players[color].done_button = true
+        G.d.players[color].active = true
+        updatePlayerBoardUI(color)
+      end
+    else
+      debug("ERROR: cube "..guid.." not in player "..color.." staged cubes list"); return false
+    end
+    add()
     return true
   else
     log("WARN: setGrande() unknown phase")
@@ -2187,7 +2266,6 @@ function playerDone(pcol)
           return
         end
         getObjectFromGUID(C.IK.decks[pcol]).destruct()
-        -- for _,o in pairs(Player[pcol].getHandObjects()) do o.setInvisibleTo({}) end
         sortHand(pcol)
         if indexOf(G.d.waitlist,pcol) > 0 then
           table.remove(G.d.waitlist,indexOf(G.d.waitlist,pcol))
@@ -2592,6 +2670,7 @@ function playerDone(pcol)
                 local index = 1
                 local board = getObjectFromGUID(C.player_boards[c])
                 pd.staged_cubes = {}
+                pd.cubes_to_place = {}
                 for g,_ in pairs(evicted.caballeros[c]) do
                   local pos = board.positionToWorld(C.stage_pos_l[index])
                   getObjectFromGUID(g).setPosition(pos)
@@ -2599,6 +2678,7 @@ function playerDone(pcol)
                   G.obj.snaps[g] = pos
                   pendingCubes("add",g)
                   table.insert(pd.staged_cubes,g)
+                  table.insert(pd.cubes_to_place,g)
                 end
               end
               a.special.disk = false
@@ -2665,7 +2745,7 @@ function playerDone(pcol)
         local veto = false
         if card then
           card.setLock(false)
-          if not(power_cards[pdata.power_bid].special.keep) then
+          if not(power_cards[pdata.power_bid].special.hold_card) then
             getObjectFromGUID(C.trash).putObject(card)
             table.remove(pdata.power_cards,indexOf(pdata.power_cards,card.getGUID()))
           end
@@ -2762,11 +2842,14 @@ function playerDone(pcol)
     end
   elseif G.d.phase == "scoring" then
     --check staged cubes, if not all placed just return doing nothing
-    if pdata.staged_cubes and #pdata.staged_cubes > 0 then
+    -- if pdata.staged_cubes and #pdata.staged_cubes > 0 then
+    if pdata.staged_cubes and #pdata.cubes_to_place > 0 then
       debug("player not finished placing staged cubes")
       return
     end
     pendingCubes("clear_player",pcol)
+    pdata.staged_cubes = nil
+    pdata.cubes_to_place = nil
     if indexOf(G.d.waitlist,pcol) > 0 then
       for i,e in ipairs(G.d.status.waitlist) do
         if e.player_color == pcol then e.player_status = "Set"; break end
@@ -3456,7 +3539,7 @@ function startScoring(regions, special, subtitle)
         for i=1,5 do
           if i <= #G.d.player_order then
             local pcol = G.d.player_order[i]
-            if #G.obj.castillo.caballeros[pcol] > 0 then
+            if #G.obj.castillo.caballeros[pcol] > 0 and not(G.d.players[pcol].espionage) then
               table.insert(G.d.status.waitlist,{player_color=pcol,player_status="Deciding"})
               table.insert(G.d.waitlist, pcol)
               G.d.players[pcol].active = true
@@ -3533,7 +3616,8 @@ function startScoring(regions, special, subtitle)
             local board = getObjectFromGUID(C.player_boards[p])
             local pdata = G.d.players[p]
             pdata.staged_cubes = {}
-            if G.obj.regions[C.region_guids[pdata.selected_region]].king then
+            pdata.cubes_to_place = {}
+            if G.obj.regions[C.region_guids[pdata.selected_region]].king and not(pdata.espionage) then
               --return cubes to player court (replicating returnToCourt() here because of takeObject())
               cleanupCourt(p)
               for _,g in ipairs(list) do
@@ -3573,6 +3657,35 @@ function startScoring(regions, special, subtitle)
                     G.obj.snaps[g] = pos
                     pendingCubes("add",g)
                     table.insert(pdata.staged_cubes,g)
+                    table.insert(pdata.cubes_to_place,g)
+                  end
+                })
+              end
+              if G.obj.castillo.grandes[p] then
+                local n = #list
+                local rem = math.fmod(n,6)
+                if rem == 0 then n = n + 1
+                elseif rem == 5 then n = n + 2 end
+                local pos = nil
+                if n <= 30 then
+                  pos = board.positionToWorld(C.stage_pos_l[n])
+                  pos.z = pos.z - 1
+                else --place in a reasonable position, below staging area
+                  pos = board.positionToWorld(C.stage_pos_l[26])
+                  pos.z = pos.z - 1.5
+                end
+                pos.x = pos.x + 1
+                castillo.takeObject({
+                  guid=G.obj.castillo.grandes[p],
+                  position=pos,
+                  rotation={0,0,0},
+                  smooth=true, --set false if problems with collisions
+                  callback_function = function(o)
+                    G.obj.snaps[o.getGUID()] = pos
+                    pendingCubes("add",o.getGUID())
+                    table.insert(pdata.staged_cubes,o.getGUID())
+                    table.insert(pdata.cubes_to_place,o.getGUID())
+                    G.obj.castillo.grandes[p] = false
                   end
                 })
               end
@@ -3656,6 +3769,35 @@ function startScoring(regions, special, subtitle)
       pdata.active = true
       pdata.action_ui = true
       updatePlayerBoardUI(G.d.active_player)
+      --handel any post scoring special actions
+      log("probe 1");log(region_list);log(a.special)
+      if a.special.ret_caballeros then
+        log("probe 2")
+        --return all caballeros in the region(s) to respective provinces
+        for _,i in ipairs(region_list) do
+          log("probe 3 "..tostring(i))
+          local region = G.obj.regions[C.region_guids[i]]
+          if region.king then log("failed, king is taboo"); break end
+          log("region caballeros: ");log(region.caballeros)
+          for p,caballeros in pairs(region.caballeros) do
+            log("probe 4 "..p)
+            for g,_ in pairs(caballeros) do log("probe 5 "..tostring(g)); returnToProvinces(p, g, true) end
+            region.caballeros[p] = {}
+          end
+        end
+        updateBoardUI()
+      end
+      log("probe 6")
+    else
+      --clear any player/modifier flags for general scoring
+      for p,pd in pairs(G.d.players) do
+        if pd.espionage then
+          table.remove(pd.held_cards,indexOf(pd.held_cards,pd.espionage))
+          local trash = getObjectFromGUID(C.trash)
+          trash.putObject(getObjectFromGUID(pd.espionage))
+          pd.espionage = nil
+        end
+      end
     end
     -- ///////////// return to game state prior to scoring ////////////////
     G.d.phase = backup.phase
@@ -4021,8 +4163,8 @@ function onObjectDrop(pcol, obj)
       else snapBack(obj.getGUID()) end
     end
   elseif G.d.phase == "scoring" then
-    if not(obj.hasTag("Caballero")) then
-      debug("WARN: onObjectDrop(): object not a caballero during general scoring")
+    if not(obj.hasTag("Caballero") or obj.hasTag("Grande")) then
+      debug("WARN: onObjectDrop(): object not a Caballero or Grande during general scoring")
       if G.obj.snaps[obj.getGUID()] then snapBack(obj.getGUID()) end
       return
     end
@@ -4038,7 +4180,11 @@ function onObjectDrop(pcol, obj)
     else
       if pcol ~= obj.memo then snapBack(obj.getGUID()); return end --disallow other players to move the cube
     end
-    if not(addCaballero(pcol, region, obj.memo, obj.getGUID())) then snapBack(obj.getGUID()); return end
+    if obj.hasTag("Caballero") then
+      if not(addCaballero(pcol, region, obj.memo, obj.getGUID())) then snapBack(obj.getGUID()); return end
+    elseif obj.hasTag("Grande") then
+      if not(setGrande(region, obj.memo)) then snapBack(obj.getGUID()); return end
+    end
     G.obj.snaps[obj.getGUID()] = obj.getPosition()
   else
     debug("ERROR: onObjectDrop() unhandled game phase") --DEBUG
@@ -4372,7 +4518,11 @@ function updatePlayerBoardUI(pcol)
     object_UI_setClass(board, "pointer","") --BUG: doesn't work, workaround: ignore clicks in diskClick()
   end
   if pdata.show_stage then
-    object_UI_setAttribute(board,"stage_title_txt","text","Move to "..G.obj.regions[C.region_guids[pdata.selected_region]].name)
+    if pdata.espionage then
+      object_UI_setAttribute(board,"stage_title_txt","text","Move to any region")
+    else
+      object_UI_setAttribute(board,"stage_title_txt","text","Move to "..G.obj.regions[C.region_guids[pdata.selected_region]].name)
+    end
     object_UI_setAttribute(board,"stage_pnl","active",true)
   else
     object_UI_setAttribute(board,"stage_pnl","active",false)
@@ -4807,8 +4957,8 @@ function scoreRegion(region_guid)
       if rank[index][1].val > 0 then
         if index == 1 then
           --determine Home region and/or King bonus
-          if region.grandes[rank[1][1].player] then  score = score + 2; grande = true end
-          if region.king then score = score + 2; king = true end
+          if region_guid ~= "castillo" and region.grandes[rank[1][1].player] then score=score + 2; grande = true end
+          if region_guid ~= "castillo" and region.king then score = score + 2; king = true end
         end
         local e = {player=rank[index][1].player,caballeros=rank[index][1].val,score=score,grande=grande,king=king,}
         table.insert(result,{e})

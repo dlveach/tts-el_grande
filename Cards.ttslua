@@ -173,22 +173,28 @@ cards = {
 --[[ Intrigue and the King cards]]
 power_cards = {
   [10] = { name="Intrigue",description="Execute the Intrigue action",
-    prov=6, special={id="IK_intrigue",desc="Intrigue action"},
+    prov=6, special={id="IK_intrigue", desc="Intrigue action"},
   },
   [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
-    prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"}, --TODO: WIP
+    prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"}, --TODO: WIP, Test this
   },
-  [20] = {name="TODO name",description="Ignore King adjacency\nduring Caballero card",
-    prov=5, special={id="modify",target="court",any_region=true,desc="Court to any region"}, --NOTE: no special, modify only
+  [20] = {name="TODO name",description="Ignore King adjacency\nduring Caballero card",  --NOTE: no special, modify only
+    prov=5, special={id="modify", target="court", any_region=true, desc="Court to any region"},
   },
-  [25] = {},
+  [25] = { name="Espionage", description="On next general scoring\nmove to any region",  --NOTE: no special, hold until scoring
+    prov=1, special={id="espionage", hold_card=true, desc="TODO"},
+  },
   [30] = { name="TODO name", description="Opp send Court back\nto the Provinces",
-    prov=5, special={id="court_2_prov",opp=true,immediate=true,desc="TODO description"},
+    prov=5, special={id="court_2_prov", opp=true, immediate=true, desc="TODO description"},
   },
-  [35] = {},
+  [35] = { name = "Coup!", description="Opp Grandes go\nto the Castillo", --TODO
+    prov=4, special={id="IK_coup", immediate=true, desc="TODO",},
+  },
   [40] = {},
   [50] = {},
-  [60] = {},
+  [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions",
+    prov=4, special={id="special_scoring",immediate=true,region_score={6,7},desc="Special Scoring: 6 & 7 regions"},
+  },
   [63] = {},
   [66] = {},
   [70] = {},
@@ -212,8 +218,12 @@ power_cards = {
   [130] = {},
   [135] = {},
   [140] = {},
-  [145] = {},
-  [150] = {},
+  [145] = { name="Special Scoring", description="All Caballeros\nret to Provinces",
+    prov=0, special={id="special_scoring", secret=true, ret_caballeros=true, players="active", desc="Active Player\nSelect a region",},
+  },
+  [150] = { name="Special Scoring", description="Active Player\nScore a Secret Region",
+    prov=1, special={id="special_scoring",secret=true,players="active",desc="Active Player\nSelect a region",},
+  },
   [155] = { name="Special Scoring", description="Select 3 regions then\nopp chooses scoring",
     prov=1, special={id="special_scoring", selected=3, desc="TODO description"},
   },
