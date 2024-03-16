@@ -1,0 +1,43 @@
+DEBUG = false
+ACTIVE = false
+
+function onLoad(save_state)
+  if DEBUG then log("Bridge:onLoad()") end
+end
+
+function setActive(state)
+  if DEBUG then log("Bridge:setActive() "..tostring(state)) end
+  ACTIVE = state or false
+  self.setLock(not(ACTIVE))
+end
+
+--TODO: should the onDrop code just be in Global onObjectDrop() & check for "Bridge" tag?
+function onDrop(pcol)
+  function debug(msg) if DEBUG then log("Bridge:onDrop() "..msg) end end
+  debug("Player "..pcol.." dropped the bridge")
+  if ACTIVE then
+    local regions = {}
+    local pos = self.getPosition();pos.y = 0
+    local rot = self.getRotation()
+    local hits = Physics.cast({origin=pos, orientation=rot, direction={0,1,0,}, max_distance=2, size={3,1,1,}, type=3, debug=DEBUG,})
+    for _,hit in ipairs(hits) do
+      if hit.hit_object.hasTag("Region") then
+        table.insert(regions, hit.hit_object.getGUID())
+        if #regions == 2 then break end
+      end
+    end
+    debug("Regions: "..tostring(regions[1])..", "..tostring(regions[2]))
+    for _,g in ipairs(regions) do getObjectFromGUID(g).highlightOn(Color["Yellow"], 1.5) end
+    if #regions == 2 then
+      if Global.call("setBridge",{regions=regions,pcol=pcol}) then
+        self.setColorTint(pcol)
+        self.setDescription(pcol.." Bridge")
+        return
+      end
+    end
+  end
+  Global.call("snapBack",self.getGUID())
+  self.setRotation({0,0,0})
+  self.setColorTint(Color["White"])
+  self.setDescription("")
+end

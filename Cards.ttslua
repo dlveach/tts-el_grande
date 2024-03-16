@@ -176,7 +176,7 @@ power_cards = {
     prov=6, special={id="IK_intrigue", desc="Intrigue action"},
   },
   [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
-    prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"}, --TODO: WIP, Test this
+    prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"},
   },
   [20] = {name="TODO name",description="Ignore King adjacency\nduring Caballero card",  --NOTE: no special, modify only
     prov=5, special={id="modify", target="court", any_region=true, desc="Court to any region"},
@@ -191,15 +191,19 @@ power_cards = {
     prov=4, special={id="IK_coup", immediate=true, desc="TODO",},
   },
   [40] = {},
-  [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",   --TODO
+  [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
   [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions",
     prov=4, special={id="special_scoring",immediate=true,region_score={6,7},desc="Special Scoring: 6 & 7 regions"},
   },
-  [63] = {},
-  [66] = {},
-  [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",    --TODO
+  [63] = { name="Bridge Building",description="Place the bridge\njoining two regions",
+    prov=3, special={id="bridge", desc="Place the bridge"}
+  },
+  [66] = { name="Take 6!", description="Limit a Region to\n6 Caballeros max", --TODO:WIP
+    prov=4, special={id="take6", leave_face_up=true, desc="TODO desc",},
+  },
+  [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
   [75] = {},
@@ -207,7 +211,9 @@ power_cards = {
   [90] = {name="Mobile ScoreBoard",description="Place or move a\nMobile Score Board",
     prov=4, special={id="mobile_score_board",desc="Move a scoreboard"},
   },
-  [93] = {},
+  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region", --TODO:WIP
+    prov=3, special={id="IK_quarantine", desc="Choose a region",},
+  },
   [95] = {},
   [100] = { name="Special Scoring",description="Score all the\n'4' Regions",
     prov=3, special={id="special_scoring",immediate=true,region_score=4,desc="Special Scoring: 4 regions"},
@@ -219,9 +225,13 @@ power_cards = {
     prov=2, special={id="special_scoring",immediate=true,region_score=5,desc="Special Scoring: 5 regions"},
   },
   [125] = {},
-  [130] = {},
-  [135] = {},
-  [140] = { name="Castillo", description="Send 2 Caballeros each\nto Castillo. Yours from Court",  --TODO
+  [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring",  --TODO:WIP
+    prov=2, special={id="region_score_double", disk=true, players="active", desc="Choose a region",},
+  },
+  [135] = { name="Special Scoring", description="Score one region where you have 2 Caballeros but not the majority", --TODO:WIP
+    prov=2, special={id="special_scoring", players="active", count=2, no_maj=true, desc="Choose a region"},
+  },
+  [140] = { name="Castillo", description="Send 2 Caballeros each\nto Castillo. Yours from Court",
     prov=1, special={id="IK_castillo", count=2, desc="Opp: 2 from board\nYou: 2 from Court"},
   },
   [145] = { name="Special Scoring", description="All Caballeros\nret to Provinces",

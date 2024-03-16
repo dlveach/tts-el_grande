@@ -160,17 +160,52 @@ C.region_start_info={
   ["d53798"]={king={-8.92, 2.75, -7.11},grande={Blue={-6.53, 1.66, -12.36},Red={-7.44, 1.66, -9.82},Green={-5.58, 1.66, -9.78},Purple={-3.71, 1.66, -9.83},Yellow={-4.62, 1.66, -12.34},},},
   ["c74830"]={king={-1.20, 2.85, -14.41},grande={Blue={1.28, 1.66, -10.16},Red={2.98, 1.66, -10.20},Green={4.85, 1.66, -10.16},Purple={6.72, 1.66, -10.21},Yellow={8.56, 1.66, -10.20},},},
 }
-C.region_xml = '[{"attributes":[],"children":[{"attributes":{"height":"50","id":"mb_panel","color":"rgba(0,0,0,0)","position":"-113 -39 -7","raycastTarget":"false","rotation":"0 0 180","width":"108"},"children":[{"attributes":{"color":"#E3C8B3","id":"mb_image","image":"MB840","preserveAspect":"true"},"children":[],"tag":"Image"}],"tag":"Panel"}],"tag":"XmlLayout"}]'
 C.region_ui = {
-  ["7593ad"] = {scale="1.37 1.37",position="6 -45 -7",active="true"},       --1 Galicia
-  ["9831c2"] = {scale="1.39 1.39",position="-73.5 -48 -7",active="true"},   --2 Basque Country
-  ["034b56"] = {scale="0.77 0.77",position="-76.5 27.5 -7",active="true"},  --3 Old Castille
-  ["e63e4a"] = {scale="1.21 1.21",position="92 33 -7",active="true"},       --4 Aragon
-  ["ff0a84"] = {scale="1.21 1.21",position="-3 -62.5 -7",active="true"},    --5 Catalonia
-  ["719679"] = {scale="1 1",position="-113 -39 -7",active="false"},         --6 New Castille
-  ["5c52ab"] = {scale="1 1",position="-18.5 -108 -7",active="true"},        --7 Valencia
-  ["d53798"] = {scale="1.45 1.45",position="-8 -108.5 -7",active="false"},  --8 Seville
-  ["c74830"] = {scale="1.25 1.25",position="57 60 -7",active="true"},       --9 Granada
+  ["7593ad"] = {   --1 Galicia
+    msb={scale="1.37 1.37",position="6 -45 -7",active="false"},
+    border={scale="1.37 1.37",position="50 45 -7",active="false"},
+    label={scale="1.37 1.37",position="-60 80 -7",active="false"},
+  },
+  ["9831c2"] = {  --2 Basque Country
+    msb={scale="1.39 1.39",position="-73.5 -48 -7",active="false"},
+    border={scale="1.39 1.39",position="120 35 -7",active="false"},
+    label={scale="1.39 1.39",position="-20 75 -7",active="false"},
+  },
+  ["034b56"] = {  --3 Old Castille
+    msb={scale="0.77 0.77",position="-76.5 27.5 -7",active="false"},
+    border={scale="0.77 0.77",position="-30 80 -7",active="false"},
+    label={scale="0.77 0.77",position="-100 100 -7",active="false"},
+  },
+  ["e63e4a"] = {  --4 Aragon
+    msb={scale="1.21 1.21",position="92 33 -7",active="false"},
+    border={scale="1.21 1.21",position="30 -40 -7",active="false"},
+    label={scale="1.21 1.21",position="-65 -5 -7",active="false"},
+  },
+  ["ff0a84"] = {  --5 Catalonia
+    msb={scale="1.21 1.21",position="-3 -62.5 -7",active="false"},
+    border={scale="1.21 1.21",position="112 20 -7",active="false"},
+    label={scale="1.21 1.21",position="10 50 -7",active="false"},
+  },
+  ["719679"] = {  --6 New Castille
+    msb={scale="1 1",position="-113 -39 -7",active="false"},
+    border={scale="1 1",position="45 25 -7",active="false"},
+    label={scale="1 1",position="-50 60 -7",active="false"},
+  },
+  ["5c52ab"] = {  --7 Valencia
+    msb={scale="1 1",position="-18.5 -108 -7",active="false"},
+    border={scale="1 1",position="63 47 -7",active="false"},
+    label={scale="1 1",position="-20 75 -7",active="false"},
+  },
+  ["d53798"] = {  --8 Seville
+    msb={scale="1.45 1.45",position="-8 -108.5 -7",active="false"},
+    border={scale="1.45 1.3",position="97 30 -7",active="false"},
+    label={scale="1.3 1.4",position="-10 65 -7",active="false"},
+  },
+  ["c74830"] = {  --9 Granada
+    msb={scale="1.25 1.25",position="57 60 -7",active="false"},
+    border={scale="1.25 1.25",position="55 -28 -7",active="false"},
+    label={scale="1.25 1.25",position="-50 5 -7",active="false"},
+  },
 }
 C.castillo_template={
   name="Castillo",scoring={5,3,1},score_board=false,caballeros={Blue={},Red={},Green={},Purple={},Yellow={},},
@@ -208,6 +243,8 @@ for N > 50 use N=N - 50 and repeat above
 C.delta_Z=-2.86
 C.delta_X=-2.83
 --[[ Intrique and the King expansion stuffs ]]
+C.bridge = "51e247"
+C.bridge_home_pos = {49.86, 1.46, -18.50}
 -- scale in play: 1.6, scale returned: 1.87
 C.IK = {
   setup_card="eab5b7",
