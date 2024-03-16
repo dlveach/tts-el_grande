@@ -1310,7 +1310,8 @@ function processAction(pcol, opt)
     log("ERROR: processAction() unknown action opt: "..tostring(opt))   --DEBUG
   end
 end
---[[ run a special action ]]
+--[[ run a special action  MONSTER conditional function!
+--]]
 function doSpecial(pcol)
   if env.trace then log("doSpecial() "..pcol) end
   local pdata = G.d.players[pcol]
@@ -2528,6 +2529,7 @@ function addQuarantine(region, guid)
   object_UI_setAttribute(region,"border_image","image","Quarantine")
   object_UI_setAttribute(region,"border","active",true)
   object_UI_setAttribute(region,"label_text","text","Quarantine")
+  object_UI_setAttribute(region,"label_text","color","Red")
   object_UI_setAttribute(region,"label","active",true)
   if source and not(placed) then
     G.obj.regions[source].quarantine = nil
@@ -3621,6 +3623,7 @@ function undo(u)
       object_UI_setAttribute(u.origin,"border_image","image","Quarantine")
       object_UI_setAttribute(u.origin,"border","active",true)
       object_UI_setAttribute(u.origin,"label_text","text","Quarantine")
+      object_UI_setAttribute(u.origin,"label_text","color","Red")
       object_UI_setAttribute(u.origin,"label","active",true)
       G.d.MSB[u.g].placed = false
       G.d.MSB[u.g].quarantine = true
