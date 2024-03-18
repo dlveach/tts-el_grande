@@ -2,34 +2,12 @@
   NOTE:
     - structure of special.id is sometimes parsed, be careful.
       specifically: move_<key>_caballero where <key> is parsed (as well as 'move')
+
+  cards: Base game cards
+  power_cards: Intrigue and the King expansion cards
+
 ]]
 cards = {
-  ["example"] = {
-    name = "card name",
-    description = "description of the action", --actually the special action
-    court = 5, --num cubes can be moved from court to regions
-    specials = {
-      {
-        id="action_id",
-        desc="action stage description",
-        dest="any_region", --any region except the king's or the castillo, otherwise limit to king adjacecy
-        min=0, --min cubes moved entire special
-        max=0, --max cubes moved entire special
-        each=false, --min/max are evaluated per player/opponent (any/opp in 2nd field of id)
-        total=0, --max cubes total for all colors, only valid with each=true
-        key="move_caballero", --move only own
-        key="move_opp_caballero", --move opponent cubes
-        key="move_any_caballero", --move own or oppoent cubes.
-        opp=true, --Only opponents do the thing
-        all=true, --all players do the thing
-        disk=true, --secret disk selection occurs to define affected regions
-        region_score=N, --special_scoring: score all N regions
-        caballeros=N, --special_scoring: score all regions with N caballeros
-        secret=true, --special_scoring: score regions secretly selected by one or more players
-        players=key, --key=["active"|"all"], special_scoring: players involved in selection
-      },
-    },
-  },
   ["a76961"] = { name="The Court",description="Move 2 Caballeros\nfrom the Court",
     court=4, special={id="prov2court",count=2,immediate=true,},
   },
@@ -178,10 +156,10 @@ power_cards = {
   [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
     prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"},
   },
-  [20] = {name="TODO name",description="Ignore King adjacency\nduring Caballero card",  --NOTE: no special, modify only
-    prov=5, special={id="modify", target="court", any_region=true, desc="Court to any region"},
+  [20] = {name="Court Any Region",description="Ignore King adjacency\nduring Caballero card",
+    prov=5, special={id="court_any_region", any_region=true, desc="Court to any region"},
   },
-  [25] = { name="Espionage", description="On next general scoring\nmove to any region",  --NOTE: no special, hold until scoring
+  [25] = { name="Espionage", description="On next general scoring\nmove to any region",
     prov=1, special={id="espionage", hold_card=true, desc="TODO"},
   },
   [30] = { name="TODO name", description="Opp send Court back\nto the Provinces",
@@ -190,7 +168,7 @@ power_cards = {
   [35] = { name = "Coup!", description="Opp Grandes go\nto the Castillo",
     prov=4, special={id="IK_coup", immediate=true, desc="TODO",},
   },
-  [40] = {},
+  [40] = {}, --TODO
   [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
@@ -200,21 +178,21 @@ power_cards = {
   [63] = { name="Bridge Building",description="Place the bridge\njoining two regions",
     prov=3, special={id="bridge", desc="Place the bridge"}
   },
-  [66] = { name="Take 6!", description="Limit a Region to\n6 Caballeros max", --TODO:WIP
-    prov=4, special={id="take6", leave_face_up=true, desc="TODO desc",},
+  [66] = { name="Take 6!", description="Limit a Region to\n6 Caballeros max",
+    prov=4, special={id="take6", count=6, disk=true; players="active", leave_face_up=true, hold_card=true, desc="Select a region",},
   },
   [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
-  [75] = {},
-  [80] = {},
+  [75] = {}, --TODO
+  [80] = {}, --TODO
   [90] = {name="Mobile ScoreBoard",description="Place or move a\nMobile Score Board",
     prov=4, special={id="mobile_score_board",desc="Move a scoreboard"},
   },
-  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region", --TODO:WIP
+  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region",
     prov=3, special={id="IK_quarantine", desc="Choose a region",},
   },
-  [95] = {},
+  [95] = {}, --TODO
   [100] = { name="Special Scoring",description="Score all the\n'4' Regions",
     prov=3, special={id="special_scoring",immediate=true,region_score=4,desc="Special Scoring: 4 regions"},
   },
@@ -224,8 +202,10 @@ power_cards = {
   [120] = { name="Special Scoring",description="Score all the\n'5' Regions",
     prov=2, special={id="special_scoring",immediate=true,region_score=5,desc="Special Scoring: 5 regions"},
   },
-  [125] = {},
-  [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring",  --TODO:WIP
+  [125] = { name="Remove a card", description="Remove a card with\n'Leave Face Up'",
+    prov=3, special={id="remove_face_up", desc="Click on a card"},
+  },
+  [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring",
     prov=2, special={id="region_score_double", disk=true, players="active", desc="Choose a region",},
   },
   [135] = { name="Special Scoring", description="Score one region where you have 2 Caballeros but not the majority", --TODO:WIP
@@ -247,12 +227,12 @@ power_cards = {
     prov=0, special={id="king",desc="Move the King"},
   },
   [170] = { name="Special Scoring",description="Score region(s) selected\nby > 1 player",
-    prov=0, special={id="special_scoring",secret=true, disk=true, players="all", dupes=true, desc="All select a region\nScore only duplicates!"}, --TODO WIP
+    prov=0, special={id="special_scoring",secret=true, disk=true, players="all", dupes=true, desc="All select a region\nScore only duplicates!"}, --TODO: test
   },
   [180] = { name="King",description="Execute the King action",
     prov=0, special={id="IK_king",desc="King action"},
   },
-  [0] = {},
+  [0] = {}, --TODO
 }
 IK_king = { name="King card",description="Move the King\nto any Region",
   special={id="king",IK="IK_king",dest="any_region",desc="Move the King"},

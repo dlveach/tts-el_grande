@@ -3,13 +3,17 @@
 --TODO: document, credits, etc.
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
+  -BUG: not locking power card when moved to held_cards area, see code that places the card
   -BUG: I&K card 15: moved cube court to board.  Then moved that cube to Castillo.  Undo fails, cannot locate object.  Undo not being updated for Castillo.
   -DONE: get rid of wait.condition over use. Fails rewind/reload
   -TODO: retest Veto now that wait.condition over use is better
   -TODO: get rid of 'ignore_wait' flag when sure that coros are all safe
   -TODO: break up scoring coroutine. Make scoring state/data persist. Make rewind/reload safe.
 
+  --Probably highly desired by players
   -TODO: remove cube from pending move when placed back in origin region, reset things back to original state wrt that cube and origin region.
+
+  --Relatively minor finishing things / nice to haves
   -TODO: destroy unused scoring markers at startup.
   -TODO: create an undo entry that clears scoring history when action that generated it get's undone (special scoring only)
 ]]
@@ -26,7 +30,7 @@ env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttr
 env.save_stats = false --log save data size every onSave() call.  Noisy.
 env.lock_player_cubes = true --false for testing
 env.ignore_drop = false --true for testing
-env.hide_start_panel = true --for workng on UIs, don't show start panel.
+env.hide_start_panel = false --for workng on UIs, don't show start panel.
 --[[  defaults for game environment settings ]]
 env.game_verbose = true
 env.short_game = false
@@ -227,6 +231,7 @@ function restoreGame()
 end
 --[[ Set xml on all the regions and apply attribute data from Constants
     UIs are initialized inactive.
+    See Constants.ttslua: C.region_ui
 --]]
 function setRegionXml()
   if env.trace then log("setRegionXml()") end
@@ -236,8 +241,12 @@ function setRegionXml()
     local xml = r.UI.getXmlTable()
     local e = getXmlElement("scoreboard",xml)
     for id,val in pairs(d.msb) do e.attributes[id]=val end
-    e = getXmlElement("border",xml)
-    for id,val in pairs(d.border) do e.attributes[id]=val end
+    e = getXmlElement("quarantined",xml)
+    for id,val in pairs(d.quarantined) do e.attributes[id]=val end
+    e = getXmlElement("protected",xml)
+    for id,val in pairs(d.protected) do e.attributes[id]=val end
+    e = getXmlElement("limit",xml)
+    for id,val in pairs(d.limit) do e.attributes[id]=val end
     e = getXmlElement("label",xml)
     for id,val in pairs(d.label) do e.attributes[id]=val end
     r.UI.setXmlTable(xml)
@@ -335,6 +344,7 @@ function setupGame(player, button, id)
         court_locked = true,
         provinces_locked = true,
         action_card = "",
+        held_cards = {},
       }
     else
       --delete all unused items for non-seated colors
@@ -350,32 +360,32 @@ function setupGame(player, button, id)
     local d = getObjectFromGUID(C.IK.setup_deck)
     assert(d,"setupGame() cannot locate setup deck for Intrigue and the King expansion")
     local cleanup = true
-    d.takeObject({guid=C.IK.king,position=C.IK.king_pos,
+    d.takeObject({guid=C.IK.king,position=C.IK.king_home_pos,
       callback_function=function(card)
-        Wait.condition(function() card.setLock(true) end,function() return card.resting end)
+        Wait.condition(function() card.setLock(true) end,function() return card.resting end, 5)
       end,
     })
-    d.takeObject({guid=C.IK.intrigue,position=C.IK.intrigue_pos,
+    d.takeObject({guid=C.IK.intrigue,position=C.IK.intrigue_home_pos,
       callback_function=function(card)
-        Wait.condition(function() card.setLock(true) end,function() return card.resting end)
+        Wait.condition(function() card.setLock(true) end,function() return card.resting end, 5)
       end,
     })
     G.d.IK_caballero_cards = {}
     for _,i in ipairs(C.IK.setup_caballero_cards[#G.d.player_order]) do
-      local p = C.IK.caballero_pos[i]
+      local p = C.IK.caballero_home_pos[i]
       local g = C.IK.caballero_cards[i]
       if d.tag == "Deck" then
         local o = d.takeObject({
           guid=g, position=p,
           callback_function=function(card)
             card.value = i
-            Wait.condition(function() card.setLock(true) end,function() return card.resting end)
+            Wait.condition(function() card.setLock(true) end,function() return card.resting end, 5)
           end,
         })
         if d.remainder then d = d.remainder end
       elseif d.tag == "Card" then --last card, no more deck (shouldn't happen but cover the case)
         d.setPositionSmooth(p,false,false)
-        Wait.condition(function() d.setLock(true); d.value = i end,function() return d.resting end)
+        Wait.condition(function() d.setLock(true); d.value = i end,function() return d.resting end, 5)
         cleanup = false --nothing to destroy
       else
         log("ERROR: setupGame(): unhandled tag "..tostring(d.tag)) --DEBUG
@@ -386,6 +396,8 @@ function setupGame(player, button, id)
     for _,pdata in pairs(G.d.players) do pdata.power_cards = {} end
     for _,g in ipairs(C.button_guids) do getObjectFromGUID(g).destruct() end --get rid of bid tiles from base game
     G.obj.bid_buttons = nil
+    -- Table for "Face Up Cards" that may be played.  Save information needed to "remove" them later if #125 is played.
+    G.d.IK_face_up_cards = {}
   else
     getObjectFromGUID(C.bridge).destruct()
     getObjectFromGUID(C.IK.setup_deck).destruct()
@@ -718,7 +730,7 @@ function startBidPhase()
         position=pos,
         flip=true,
         callback_function = function(o)
-          Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+          Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
         end
       })
       table.insert(G.d.action_cards, card.getGUID())
@@ -727,7 +739,7 @@ function startBidPhase()
     if king_card.resting and king_card.is_face_down then
       king_card.setLock(false)
       king_card.flip()
-      Wait.condition(function() king_card.setLock(true) end, function() return king_card.resting end)
+      Wait.condition(function() king_card.setLock(true) end, function() return king_card.resting end, 5)
     end
     table.insert(G.d.action_cards, king_card.getGUID())
     -- Activate bid buttons
@@ -752,14 +764,14 @@ function startBidPhase()
   if G.env.intrigue_king_exp and G.d.round > 1 then
     --return King, Intrigue, and Caballero cards to home positions
     local o = getObjectFromGUID(C.IK.king)
-    o.setPosition(C.IK.king_pos)
+    o.setPosition(C.IK.king_home_pos)
     o.setScale({1.87,1,1.87})
     o = getObjectFromGUID(C.IK.intrigue)
-    o.setPosition(C.IK.intrigue_pos)
+    o.setPosition(C.IK.intrigue_home_pos)
     o.setScale({1.87,1,1.87})
     for _,g in ipairs(G.d.IK_caballero_cards) do
       local o = getObjectFromGUID(g)
-      o.setPosition(C.IK.caballero_pos[o.value])
+      o.setPosition(C.IK.caballero_home_pos[o.value])
       o.setScale({1.87,1,1.87})
     end
   end
@@ -848,18 +860,18 @@ function startActionPhase()
       --give caballero card
       local o=getObjectFromGUID(G.d.IK_caballero_cards[i])
       o.setLock(false)
-      o.setPosition(board.positionToWorld(C.IK.pb_card_pos[1]))
+      o.setPosition(board.positionToWorld(C.IK.caballero_pos_l[1]))
       o.setScale({1.6,1,1.6})
-      Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+      Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
       pdata.court_limit = indexOf(C.IK.caballero_cards,o.getGUID())
       local cards = 1
       if i == 1 then
         --give king card
         local o=getObjectFromGUID(C.IK.king)
         o.setLock(false)
-        o.setPosition(board.positionToWorld(C.IK.pb_card_pos[2]))
+        o.setPosition(board.positionToWorld(C.IK.caballero_pos_l[2]))
         o.setScale({1.6,1,1.6})
-        Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+        Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
         pdata.IK_king_card = o.getGUID()
         pdata.IK_intrigue_card = nil
         cards = 2
@@ -867,36 +879,15 @@ function startActionPhase()
         --give intrigue card
         local o=getObjectFromGUID(C.IK.intrigue)
         o.setLock(false)
-        o.setPosition(board.positionToWorld(C.IK.pb_card_pos[2]))
+        o.setPosition(board.positionToWorld(C.IK.caballero_pos_l[2]))
         o.setScale({1.6,1,1.6})
-        Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+        Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
         pdata.IK_king_card = nil
         pdata.IK_intrigue_card = o.getGUID()
         cards = 2
       else
         pdata.IK_king_card = nil
         pdata.IK_intrigue_card = nil
-      end
-      --Handle special cards that are held, delayed etc.
-      if cinfo.special.hold_card then
-        log("---TODO: place card in holding area")
-        if pdata.held_cards then table.insert(pdata.held_cards,pdata.power_card)
-        else pdata.held_cards = {pdata.power_card} end
-        if cards + #pdata.held_cards <= #C.IK.pb_card_pos then
-          local pos = board.positionToWorld(C.IK.pb_card_pos[cards + #pdata.held_cards])
-          local o = getObjectFromGUID(pdata.power_card)
-          o.setPosition(pos)
-          Wait.condition(function() o.setLock(true) end, function() return o.resting end)
-          table.remove(pdata.power_cards,indexOf(pdata.power_cards,o.getGUID()))
-
-          --TODO: set flags in action and/or player for delayed effect of card power
-          if power_cards[o.value].special.id == "espionage" then
-            pdata.espionage = o.getGUID()
-          end
-
-        else
-          assert(false,"startActionPhase(): unable to place held card, too many for number of locations!") --TODO: handle this better
-        end
       end
     end
     startPlayerActions(G.d.active_player)
@@ -973,6 +964,8 @@ function startPlayerActions(pcol)
         pdata.IK_special_action = false
         a.special = {}
         a.IK.special.completed = true --don't trigger unused action warn on Done
+      else
+        pdata.IK_special_action = true
       end
       if pdata.IK_king_card then
         a.IK.king = simpleDeepCopy(IK_king)
@@ -983,22 +976,9 @@ function startPlayerActions(pcol)
         pdata.IK_king_action = false
         pdata.IK_intrigue_action = true
       else
-        pdata.IK_special_action = true
+        -- pdata.IK_special_action = true
         pdata.IK_king_action = false
         pdata.IK_intrigue_action = false
-      end
-      --handle special cases for special action not an action
-      if cinfo.special.id == "modify" then
-        pdata.IK_special_action = false
-        a.special = {}
-        a.IK.special.completed = true
-        if cinfo.special.target == "court" and cinfo.special.any_region then a.court_any_region = true end
-      elseif cinfo.special.hold_card then
-        pdata.IK_special_action = false
-        a.special = {}
-        a.IK.special.completed = true
-      elseif #G.d.player_order < 4 then
-        pdata.IK_special_action = true
       end
     end
     pdata.undo_button = false
@@ -1030,7 +1010,7 @@ function startPlayerActions(pcol)
       a.special = simpleDeepCopy(cinfo.special)
       local board = getObjectFromGUID(C.player_boards[pcol])
       card.setPosition(board.positionToWorld(C.card_pos_l))
-      Wait.condition(function() card.setLock(true) end, function() return card.resting end)
+      Wait.condition(function() card.setLock(true) end, function() return card.resting end, 5)
     end
     pdata.undo_button = true
   end
@@ -1066,6 +1046,7 @@ function processAction(pcol, opt)
       a.IK.special.completed = true --don't trigger unused action warn on Done
       a.special = simpleDeepCopy(a.IK.king.special)
       a.undo.IK_king = {}
+      a.undo.IK_king["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
       table.insert(a.sequence,1,"IK_king")
       doSpecial(pcol)
     else log("ERROR: incorrect stage for I&K King: "..tostring(a.stage)); return end   --DEBUG
@@ -1075,21 +1056,43 @@ function processAction(pcol, opt)
       a.IK.special.completed = true --don't trigger unused action warn on Done
       a.special = simpleDeepCopy(a.IK.intrigue.special)
       a.undo.IK_intrigue = {}
+      a.undo.IK_intrigue["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
       table.insert(a.sequence,1,"IK_intrigue")
       doSpecial(pcol)
     else log("ERROR: incorrect stage for I&K Intrigue: "..tostring(a.stage)); return end   --DEBUG
   elseif opt == "special" then
     if a.stage == "main" then
       if a.IK then
+        if a.IK.special.hold_card then
+          log("---place power card in holding area")
+          local board = getObjectFromGUID(C.player_boards[pcol])
+          if sizeOf(pdata.held_cards) <= #C.IK.card_pos_l then
+            local pos = board.positionToWorld(C.IK.card_pos_l[sizeOf(pdata.held_cards)+1])
+            local o = getObjectFromGUID(pdata.power_card)
+            o.memo = pcol
+            pdata.held_cards[pdata.power_card] = {id=a.IK.special.id,g=o.getGUID(),power=o.value,}
+            o.setPosition(pos)
+            Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
+            table.remove(pdata.power_cards,indexOf(pdata.power_cards,o.getGUID()))
+          else
+            --TODO: more than 4 cards held, if this can happen, figure out how to handle it
+            assert(false,"startActionPhase(): unable to place held card, too many for number of locations!") --TODO: handle this
+          end
+        end
         a.description = power_cards[pdata.power_bid].description
-        pdata.IK_king_action = false
-        pdata.IK_intrigue_action = false
+        if pdata.IK_king_action then
+          pdata.IK_king_action = false
+          a.undo.special["IK_king_action"] = {id="IK_king_action", pcol=pcol, state=true}
+        elseif pdata.IK_intrigue_action then
+          pdata.IK_intrigue_action = false
+          a.undo.special["IK_intrigue_action"] = {id="IK_intrigue_action", pcol=pcol, state=true}
+        end
         if a.IK.king then a.IK.king.completed = true end --don't trigger unused action warn on Done
         if a.IK.intrigue then a.IK.intrigue.completed = true end --don't trigger unused action warn on Done
       else a.description = cards[a.guid].description end
       if not(a.description) then a.description = "Special Action" end
       table.insert(a.sequence,1,"special")
-      if a.IK then
+      if a.IK then --bit of a HACK: override a.special for IK_king or IK_intrique specials
         if a.IK.special.id == "IK_king" then
           a.special = simpleDeepCopy(IK_king.special)
           a.special.IK = "special" --this the special, not the King card action
@@ -1206,11 +1209,8 @@ function processAction(pcol, opt)
     a.ignore_wait = true --TODO: no coro (remove when all coro's safe)
     a.waiting = 0
     a.status.waitlist = {}
-
     -- updateStatusUI(a.status)
-    --TODO: always return status back to G.d.status (beginning of turn?)  See also reset.
-    updateStatusUI(G.d.status)
-
+    updateStatusUI(G.d.status) --TODO: TESTING: return status back to G.d.status (beginning of turn?)  See also reset.
   elseif opt == "reset" then
     if a.stage == "waiting" then --TODO: clean up this mess! move stuff to an undo.special entries TODO: conflict with undo I&K sequencing?
       log("processAction(): reset special while waiting")
@@ -1284,7 +1284,6 @@ function processAction(pcol, opt)
     end
     a.stage = "main"
     a.description = "Choose an action"
-
     a.status.info = "Active Player\nChoose actions for\n"..a.name
     a.waitlist = {}
     a.status.waitlist = {}
@@ -1293,7 +1292,6 @@ function processAction(pcol, opt)
     -- updateStatusUI(a.status)
     --TODO: always return status back to G.d.status (beginning of turn?)  Also needed in finished if so.
     updateStatusUI(G.d.status)
-
     --reset stuff in the action, TODO: more undo.special entries?
     a.caballeros_moved = 0
     if #a.pending_cubes > 0 then
@@ -1305,7 +1303,6 @@ function processAction(pcol, opt)
     updatePlayerBoardUI(pcol)
     updateBoardUI()
     updateCastilloUI()
-
   else
     log("ERROR: processAction() unknown action opt: "..tostring(opt))   --DEBUG
   end
@@ -1436,7 +1433,7 @@ function doSpecial(pcol)
         o.setRotation({0,0,0})
         table.insert(pdata.court,o.getGUID())
         table.remove(pdata.provinces,indexOf(pdata.provinces,o.getGUID()))
-        Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+        Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
         G.obj.snaps[o.getGUID()] = pos
         a.undo.special[o.getGUID()] = {id="prov2court", pcol=pcol, g=o.getGUID()}
         a.caballeros_moved = a.caballeros_moved + 1
@@ -1738,7 +1735,11 @@ function doSpecial(pcol)
     pdata.disk_button = true
     pdata.show_stage = false
     pdata.allowed_regions = {}
-    for i,g in ipairs(C.region_guids) do if not(G.obj.regions[g].king) then table.insert(pdata.allowed_regions,i) end end
+    for i,g in ipairs(C.region_guids) do
+      if not(G.obj.regions[g].king or G.obj.regions[g].quarantine or G.obj.regions[g].protected) then
+        table.insert(pdata.allowed_regions,i)
+      end
+    end
     pdata.undo_button = false
     pdata.done_button = true
     pdata.action_ui = true
@@ -1876,21 +1877,42 @@ function doSpecial(pcol)
     pdata.disk_button = true
     pdata.show_disk = true
     pdata.action_ui = false
-    pdata.allowed_regions = {1,2,3,4,5,6,7,8,9}
+    --TODO: should king/quarantine/protection be respected here? saying yes for now
+    pdata.allowed_regions = {}
+    for i,g in ipairs(C.region_guids) do
+      if not(G.obj.regions[g].king or G.obj.regions[g].quarantine or G.obj.regions[g].protected) then
+        table.insert(pdata.allowed_regions,i)
+      end
+    end
     pdata.selected_region = pdata.allowed_regions[math.random(#pdata.allowed_regions)]
-    G.d.action.disallow_finished = true
+    a.disallow_finished = true
     updatePlayerBoardUI(pcol)
   elseif special.id == "take6" then
     log("Setup Take6 region selection")
     pdata.allowed_regions = {}
-    for g,r in pairs(G.obj.regions) do
-      if not(r.king or r.quarantine or r.protected) then
-        local n = 0; for _,list in pairs(r.caballeros) do n = n + sizeOf(list) end
-        if n <= 6 then table.insert(pdata.allowed_regions, r.scoring_order) end
+    for i,g in ipairs(C.region_guids) do
+      if not(G.obj.regions[g].king or G.obj.regions[g].quarantine or G.obj.regions[g].protected) then
+        local n = 0; for _,list in pairs(G.obj.regions[g].caballeros) do n = n + sizeOf(list) end
+        if n <= 6 then table.insert(pdata.allowed_regions,i) end
       end
     end
+    if #pdata.allowed_regions == 0 then
+      log("handle case no regions allowed")
+      a.stage = "special"
+      a.stage_status = "No Regions to select!"
+      a.disallow_finished = false
+      pdata.action_ui = true
+      pdata.undo_button = false
+      pdata.done_button = false
+      updatePlayerBoardUI(pcol)
+      return
+    end
     a.status.waitlist = {}
+    table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
     a.status.info = a.name..":\n"..a.description
+    a.waitlist = {pcol}
+    a.waiting = 1
+    a.stage = "waiting"
     updateStatusUI(a.status)
     pdata.undo_button = false
     pdata.done_button = true
@@ -1898,6 +1920,45 @@ function doSpecial(pcol)
     pdata.show_disk = true
     pdata.action_ui = false
     pdata.selected_region = pdata.allowed_regions[math.random(#pdata.allowed_regions)]
+    a.disallow_finished = true
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "espionage" then
+    log("set espionage card for later in general scoring, TODO: review this")
+    pdata.espionage = pdata.power_card --TODO: code review this, might still be ok
+    pdata.done_button = false
+    pdata.undo_button = false
+    pdata.action_ui = true
+    a.disallow_finished = false
+    a.stage_status = "Espionage set"
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "court_any_region" then
+    log("modify the court action to allow any region")
+    a.court_any_region = true
+    pdata.done_button = false
+    pdata.undo_button = false
+    pdata.action_ui = true
+    a.disallow_finished = false
+    a.stage_status = "Court action modified"
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "remove_face_up" then
+    log("Set up action to remove a face up card")
+    local cards = {}
+    for p,pd in pairs(G.d.players) do
+      for g,_ in pairs(pd.held_cards) do
+        local c = getObjectFromGUID(g)
+        if power_cards[c.value].special.leave_face_up then
+          c.createButton(C.face_up_button)
+          c.setLock(true) --HACK: some bug in prior code is not locking the card, see code that places the card
+          table.insert(cards,g)
+        end
+      end
+    end
+    a.undo.special["remove_face_up_"..tostring(Time.time)] = {id="remove_face_up", clear_buttons=true, cards=cards}
+    a.status.waitlist = {}
+    a.status.info = a.name..":\n"..a.description
+    updateStatusUI(a.status)
+    pdata.done_button = false
+    pdata.undo_button = false
     G.d.action.disallow_finished = true
     updatePlayerBoardUI(pcol)
   else
@@ -1936,10 +1997,10 @@ function addCaballero(player, region, color, guid)
   if rdata.king then debug("failed king region is taboo"); return false end
   if rdata.quarantine then debug("failed region is quarantined"); return false end
   if rdata.protected then debug("failed region has royal protection"); return false end
-  if rdata.limit then
+  if rdata.caballero_limit then
     local n = 0
     for _,list in pairs(rdata.caballeros) do n = n + sizeOf(list) end
-    if n >= rdata.limit then debug("failed region has been limited to "..tostring(rdata.limit)); return false end
+    if n >= rdata.caballero_limit then debug("failed region has been limited to "..tostring(rdata.caballero_limit)); return false end
   end
   if G.d.phase == "placement" then add()
   elseif G.d.phase == "actions" then
@@ -2489,7 +2550,7 @@ function addScoreBoard(region, guid)
     o.setPosition(pos)
     Wait.condition(function()
       for g,_ in pairs(G.d.MSB) do getObjectFromGUID(g).setLock(true) end
-    end, function() return o.resting end)
+    end, function() return o.resting end, 5)
     G.d.MSB[guid].placed = true
     --set the undo data and update object snaps
     G.d.action.undo.special[guid]={id="scoreboard",g=guid,region=region,origin=origin,replace=replace,snap=G.obj.snaps[guid]}
@@ -2526,9 +2587,9 @@ function addQuarantine(region, guid)
   if not(sb.is_face_down) then sb.flip() end
   -- update regions quarantine status
   rd.quarantine = guid
-  object_UI_setAttribute(region,"border_image","image","Quarantine")
+  object_UI_setAttribute(region,"border_image","image","Quarantined")
   object_UI_setAttribute(region,"border","active",true)
-  object_UI_setAttribute(region,"label_text","text","Quarantine")
+  object_UI_setAttribute(region,"label_text","text","Quarantined")
   object_UI_setAttribute(region,"label_text","color","Red")
   object_UI_setAttribute(region,"label","active",true)
   if source and not(placed) then
@@ -2546,7 +2607,7 @@ function addQuarantine(region, guid)
   sb.setPosition(pos)
   Wait.condition(function()
     for g,_ in pairs(G.d.MSB) do getObjectFromGUID(g).setLock(true) end
-  end, function() return sb.resting end)
+  end, function() return sb.resting end, 5)
   -- create an undo entry & update object data
   G.d.action.undo.special[guid]={id="quarantine",g=guid,region=region,origin=source,placed=placed,snap=G.obj.snaps[guid]}
   G.obj.snaps[guid] = pos
@@ -3024,11 +3085,11 @@ function playerDone(pcol)
               debug("ERROR: action:evict, unhandled special.evict_stage")
             end
           elseif a.special.id == "region_score_double" then
-            log("set region double scoring")
+            log("Player selected region, set region double scoring")
             local region = C.region_guids[pdata.selected_region]
             local r = G.obj.regions[region]
             getObjectFromGUID(region).highlightOn(Color["Yellow"], 1.5)
-            a.undo.special["double_scoring_"..region] = {id="double_scoring",r=region,}
+            a.undo.special["region_score_double_"..region] = {id="region_score_double",r=region,}
             a.stage_status = "Region selected"
             a.stage = "special"
             pdata.undo_button = false
@@ -3040,6 +3101,27 @@ function playerDone(pcol)
             updatePlayerBoardUI(pcol)
             r.double_scoring = true
             updateBoardUI()
+          elseif a.special.id == "take6" then
+            log("Player selected region, set take6 limit on the region")
+            local region = C.region_guids[pdata.selected_region]
+            local r = G.obj.regions[region]
+            getObjectFromGUID(region).highlightOn(Color["Yellow"], 1.5)
+            a.undo.special["take6_"..region] = {id="take6", pcol=pcol, g=pdata.power_card, r=region,}
+            a.stage_status = "Region selected"
+            a.stage = "special"
+            pdata.undo_button = false
+            pdata.done_button = false
+            pdata.show_disk = false
+            pdata.disk_button = false
+            pdata.action_ui = true
+            a.disallow_finished = false
+            updatePlayerBoardUI(pcol)
+            r.caballero_limit = a.special.count
+            updateBoardUI()
+            --update the saved player.held_cards data for the selected region, supports card #125; remove face up
+            pdata.held_cards[pdata.power_card].region = region
+            object_UI_setAttribute(region,"limit_text","text",tostring(r.caballero_limit))
+            object_UI_setAttribute(region,"limit","active",true)
           end
         end
       else
@@ -3134,7 +3216,7 @@ function playerDone(pcol)
           if card.getGUID() == C.stacks[5] then
             card.flip()
             card.setPositionSmooth(C.king_card_position,false,false)
-            Wait.condition(function() card.setLock(true) end, function() return card.resting end)
+            Wait.condition(function() card.setLock(true) end, function() return card.resting end, 5)
           elseif cards[card.getGUID()].special.id ~= "veto" then
             getObjectFromGUID(C.trash).putObject(card)
           end
@@ -3391,7 +3473,7 @@ function undo(u)
     o.setLock(false)
     o.setPosition(u.snap)
     o.clearButtons()
-    Wait.condition(function() o.setLock(true); o.createButton(C.card_button) end, function() return o.resting end)
+    Wait.condition(function() o.setLock(true); o.createButton(C.card_button) end, function() return o.resting end, 5)
     G.d.players[u.pcol].action_card = ""
   elseif u.id == "move_king" then  --WORKING
     debug("undo move king")
@@ -3494,7 +3576,7 @@ function undo(u)
     if u.region ~= "castillo" then rdata = G.obj.regions[u.region] end
     o.setLock(false)
     o.setPosition(u.snap)
-    Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+    Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
     if u.region == "castillo" then
       rdata.scoring = simpleDeepCopy(C.castillo_template.scoring)
     else
@@ -3540,7 +3622,7 @@ function undo(u)
     m.setLock(false)
     m.setPositionSmooth(pos, false, false)
     Wait.frames(function()
-      Wait.condition(function() m.setLock(true) end, function() return m.resting end)
+      Wait.condition(function() m.setLock(true) end, function() return m.resting end, 5)
     end,1)
   elseif u.id == "court_completed" then --WORKING
     G.d.action.court_completed = false
@@ -3552,6 +3634,12 @@ function undo(u)
     G.d.action.IK.intrigue.completed = false
   elseif u.id == "IK_special_completed" then --WORKING
     G.d.action.IK.special.completed = false
+  elseif u.id == "IK_special_action" then  --WORKING
+    G.d.players[u.pcol].IK_special_action = u.state
+  elseif u.id == "IK_king_action" then  --WORKING
+    G.d.players[u.pcol].IK_king_action = u.state
+  elseif u.id == "IK_intrigue_action" then --TODO: test
+    G.d.players[u.pcol].IK_intrigue_action = u.state
   elseif u.id == "restore_bid" then --WORKING
     log("undo restore_bid")
     local button_data = G.obj.bid_buttons[u.g]
@@ -3567,7 +3655,7 @@ function undo(u)
       o.setLock(false)
       returnToCourt(u.player,u.g)
       --HACK: returnToCourt will lock the cube so unlock it when it does TODO: add a flag to returnToCourt to skip locking
-      Wait.condition(function() o.setLock(false) end, function() return o.getLock() end,2)
+      Wait.condition(function() o.setLock(false) end, function() return o.getLock() end, 5)
     else
       local o = getObjectFromGUID(u.g)
       o.setLock(false)
@@ -3590,7 +3678,7 @@ function undo(u)
     else log("WARN: undo highlight: can't find object") end
   elseif u.id == "move_either_caballero" then --WORKING HACK: action modifies id? so reset it?  Find a better way.
     G.d.action.special.id = "move_either_caballero"
-  elseif u.id == "special_scoring_selected" then
+  elseif u.id == "special_scoring_selected" then --TODO: test
     for g,_ in pairs(G.obj.regions) do o = getObjectFromGUID(g); o.clearButtons(); o.highlightOff() end
     local a = G.d.action
     for p,pd in pairs(G.d.players) do
@@ -3603,7 +3691,7 @@ function undo(u)
     a.special.final_region_selected = nil
     a.special.opponent_selected = nil
     a.special.regions_selected = nil
-  elseif u.id == "quarantine" then
+  elseif u.id == "quarantine" then  --WORKING
     log("--- TODO: undo quarantine")
     -- G.d.action.undo.special[guid]={id="quarantine",g=guid,region=region,origin=source,placed=placed,snap=G.obj.snaps[guid]}
     local sb = getObjectFromGUID(u.g)
@@ -3620,9 +3708,9 @@ function undo(u)
     elseif u.source then
       if not(sb.is_face_down) then sb.flip() end
       G.obj.regions[u.origin].quarantine = true
-      object_UI_setAttribute(u.origin,"border_image","image","Quarantine")
+      object_UI_setAttribute(u.origin,"border_image","image","Quarantined")
       object_UI_setAttribute(u.origin,"border","active",true)
-      object_UI_setAttribute(u.origin,"label_text","text","Quarantine")
+      object_UI_setAttribute(u.origin,"label_text","text","Quarantined")
       object_UI_setAttribute(u.origin,"label_text","color","Red")
       object_UI_setAttribute(u.origin,"label","active",true)
       G.d.MSB[u.g].placed = false
@@ -3633,17 +3721,52 @@ function undo(u)
       G.d.MSB[u.g].quarantine = false
     end
     sb.setPosition(u.snap)
-    Wait.condition(function() sb.setLock(true) end, function() return sb.resting end)
+    Wait.condition(function() sb.setLock(true) end, function() return sb.resting end, 5)
     G.obj.snaps[u.g] = u.snap
-  elseif u.id == "region_score_double" then
-    log("--- TODO: undo region_score_double")
-  elseif u.id == "take6" then
-    log("--- TODO: undo take6 region limit")
-  elseif u.id == "double_scoring" then
+  elseif u.id == "take6" then  --WORKING
+    log("undo take6 region limit")
+    G.obj.regions[u.r].caballero_limit = nil --clear the limit from the region
+    object_UI_setAttribute(u.r,"limit","active",false)  --clear the UI
+    G.d.players[u.pcol].held_cards[u.g] = nil  --clear the held_cards table entry
+    --put the card back on player board & back in player's card list
+    local board = getObjectFromGUID(C.player_boards[u.pcol])
+    local card = getObjectFromGUID(u.g)
+    card.setPosition(board.positionToWorld(C.card_pos_l))
+    Wait.condition(function() card.setLock(true) end, function() return card.resting end, 5)
+    table.insert(G.d.players[u.pcol].power_cards,u.g)
+  elseif u.id == "region_score_double" then --WORKING
     log("undo double region scoring")
     local r = G.obj.regions[u.r]
     r.double_scoring = nil
     updateBoardUI()
+  elseif u.id == "remove_face_up" then --WORKING
+    log("undo remove face up card action")
+    if u.clear_buttons and u.cards then
+      log("undo remove face up: clearing buttons")
+      for _,g in pairs(u.cards) do local o = getObjectFromGUID(g); if o then o.clearButtons() end end
+    elseif u.restore_card then
+      log("undo remove face up: restoring card and results")
+      --get the restored card from the trash and put it back in front of proper player
+      local board = getObjectFromGUID(C.player_boards[u.p])
+      local pos = board.positionToWorld(C.IK.card_pos_l[sizeOf(G.d.players[u.p].held_cards)+1])
+      getObjectFromGUID(C.trash).takeObject({
+        guid = u.g,
+        position = pos,
+        callback_function = function(c)
+          Wait.condition(function() c.setLock(true) end, function() return c.resting end, 5)
+        end,
+      })
+      --restore results for the card being recovered.  More special cases. /me sighs
+      local pd = G.d.players[u.p]
+      if u.a == "take6" then
+        pd.held_cards[u.g] = {g=u.g,id="take6",power=v,region=u.r}
+        G.obj.regions[u.r].caballero_limit = power_cards[u.v].special.count
+        object_UI_setAttribute(u.r,"limit_text","text",tostring(G.obj.regions[u.r].caballero_limit))
+        object_UI_setAttribute(u.r,"limit","active",true)
+      else
+        log("ERROR: undo():remove_face_up: unhandled card action id")
+      end
+    end
   else
     log("ERROR: undo() unknown id")
   end
@@ -3867,7 +3990,7 @@ function startScoring(regions, special, subtitle)
           m.setScale(scale)
           m.setLock(false)
           m.setPositionSmooth(pos, false, false)
-          Wait.condition(function() m.setLock(true) end, function() return m.resting end)
+          Wait.condition(function() m.setLock(true) end, function() return m.resting end, 5)
         elseif #e > 1 then
           local s = "Players"
           for _,d in ipairs(e) do
@@ -3886,7 +4009,7 @@ function startScoring(regions, special, subtitle)
             m.setScale(scale)
             m.setLock(false)
             m.setPositionSmooth(pos, false, false)
-            Wait.condition(function() m.setLock(true) end, function() return m.resting end)
+            Wait.condition(function() m.setLock(true) end, function() return m.resting end, 5)
           end
         end
       end
@@ -3952,7 +4075,7 @@ function startScoring(regions, special, subtitle)
         updateUI(s_info)
         marker.setLock(false)
         marker.setPositionSmooth(C.round_scoring_positions[1],false,false)
-        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end, 5)
         G.d.status = {}
         G.d.status.info = "Secretly select a destination region\nKing's region -> return to Court!"
         G.d.status.waitlist = {}
@@ -3998,7 +4121,7 @@ function startScoring(regions, special, subtitle)
       if not(s_special) then
         marker.setLock(false)
         marker.setPositionSmooth(C.round_scoring_positions[2],false,false)
-        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end, 5)
       end
       s_info.msg = "Score the Castillo"
       s_info.region = "Castillo"
@@ -4026,7 +4149,7 @@ function startScoring(regions, special, subtitle)
         updateUI(s_info)
         marker.setLock(false)
         marker.setPositionSmooth(C.round_scoring_positions[3],false,false)
-        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end, 5)
         G.d.status.info = "General Scoring\nPlace staged Caballeros"
         G.d.status.info = G.d.status.info.."\nPress Done when finished"
         G.d.status.waitlist = {}
@@ -4135,7 +4258,7 @@ function startScoring(regions, special, subtitle)
       if not(s_special) then
         marker.setLock(false)
         marker.setPositionSmooth(C.round_scoring_positions[3+i],false,false)
-        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end)
+        Wait.condition(function() marker.setLock(true) end, function() return marker.resting end, 5)
       end
       getObjectFromGUID(C.region_guids[i]).highlightOn("Yellow")
       local scores = scoreRegion(C.region_guids[i])
@@ -4209,9 +4332,10 @@ function startScoring(regions, special, subtitle)
       --clear any player/modifier flags for general scoring
       for p,pd in pairs(G.d.players) do
         if pd.espionage then
-          table.remove(pd.held_cards,indexOf(pd.held_cards,pd.espionage))
+          -- table.remove(pd.held_cards,indexOf(pd.held_cards,pd.espionage))
           local trash = getObjectFromGUID(C.trash)
           trash.putObject(getObjectFromGUID(pd.espionage))
+          pd.held_cards[pd.espionage] = nil
           pd.espionage = nil
         end
       end
@@ -4262,6 +4386,49 @@ end
 
 -- //////////// User interaction handlers //////////////////
 
+--[[ Handler for clicking on a "Leave Face Up" card.
+    Used during the action to remove one.
+--]]
+function clickFaceUpCard(card, pcol, alt)
+  if env.trace then log("clickFaceUpCard() "..pcol..", "..card.getGUID()) end
+  --validate the action
+  local a = G.d.action
+  if a.player ~= pcol then return end --ignore
+  if a.IK and a.IK.special.id ~= "remove_face_up" then log("clickFaceUpCard(): invalid action id "..tostring(a.IK.special.id)); return end
+  --disable all card buttons
+  for _,d in pairs(G.d.players) do
+    for g,_ in pairs(d.held_cards) do getObjectFromGUID(g).clearButtons() end
+  end
+  --undo the actions for the card being removed using the saved face up card info.  see playerDone():actions:take6
+  local p = card.memo
+  local pd = G.d.players[p]
+  local undo = pd.held_cards[card.getGUID()]
+  if undo.id == "take6" then
+    G.obj.regions[undo.region].caballero_limit = nil
+    object_UI_setAttribute(undo.region,"limit","active",false)
+    a.undo.special["remove_face_up_"..tostring(Time.time)] = {id="remove_face_up", restore_card=true, g=card.getGUID(), p=p, a="take6",v=card.value,r=undo.region}
+  else
+    log("ERROR: clickFaceUpCard() unexpected card undo id"); return
+  end
+  --trash the card & remove from target player held cards list
+  pd.held_cards[card.getGUID()] = nil
+  card.setLock(false)
+  getObjectFromGUID(C.trash).putObject(card)
+  --clean up target player's held cards if any remain
+  local i,board = 1,getObjectFromGUID(C.player_boards[p])
+  for g,_ in pairs(pd.held_cards) do
+    local pos = board.positionToWorld(C.IK.card_pos_l[i])
+    pos.y = pos.y + 2
+    local c = getObjectFromGUID(g)
+    c.setPosition(pos)
+    Wait.condition(function() c.setLock(true) end, function() return c.resting end, 5)
+    i = i + 1
+  end
+  -- update active playerboard UI
+  G.d.action.stage_status = "Card removed"
+  G.d.action.disallow_finished = false
+  updatePlayerBoardUI(pcol)
+end
 --[[ Handler for clicking a player board button. Used during opponent selection
 --]]
 function playerBoardClick(board, pcol, alt)
@@ -4281,7 +4448,9 @@ function playerBoardClick(board, pcol, alt)
     log("ERROR: playerBoardClick() unhandled action state")
   end
 end
---[[ Handler for clicking a region button. Used during region selection
+--[[ EXPERIMENTAL: Handler for clicking a region button. Used during region selection
+    NOTE: testing an approach.  Maybe useful in other cases vs. disk seleciton.
+    Though that works pretty well.
 --]]
 --TODO: add player color protection
 function regionClick(region, pcol, alt)
@@ -4440,7 +4609,7 @@ function onObjectDrop(pcol, obj)
     if (obj.hasTag("Caballero") and r.caballeros[obj.memo][obj.getGUID()]) or
         (obj.hasTag("Grande") and r.grandes[obj.memo]) or
         (obj.hasTag("King") and r.king and not(G.d.phase == "placement")) then
-      Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end)
+      Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end, 5)
       return
     end
   end
@@ -4455,7 +4624,7 @@ function onObjectDrop(pcol, obj)
       if pdata.power_card then  obj.deal(1,pcol); return end
       local board = getObjectFromGUID(C.player_boards[pcol])
       obj.setPosition(board.positionToWorld(C.card_pos_l))
-      Wait.condition(function() obj.setLock(true) end, function() return obj.resting end)
+      Wait.condition(function() obj.setLock(true) end, function() return obj.resting end, 5)
       obj.setHiddenFrom({})
       pdata.undo_button = true
       pdata.done_button = true
@@ -4483,7 +4652,7 @@ function onObjectDrop(pcol, obj)
       if region then
         --TODO: check for action state == "staging" and if pcol ~= obj.memo then snapBack(obj.getGUID()); return
         if not(addCaballero(pcol, region, obj.memo, obj.getGUID())) then snapBack(obj.getGUID()); return end
-        Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end)
+        Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end, 5)
       elseif board then
         debug("dropped Caballero on player board "..board)
         local a = G.d.action
@@ -4580,7 +4749,7 @@ function onObjectDrop(pcol, obj)
       --TODO: can Grande be dropped on a player board or the Castillo?
       if region then
         if not(setGrande(region, obj.memo)) then snapBack(obj.getGUID()); return end
-        Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end)
+        Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end, 5)
       elseif castillo then
         snapBack(obj.getGUID()) --not supported yet (or maybe not ever)
       else
@@ -4588,7 +4757,7 @@ function onObjectDrop(pcol, obj)
       end
     elseif obj.hasTag("King") then
       if not(region) or not(setKing(region)) then snapBack(obj.getGUID()); return end
-      Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end)
+      Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end, 5)
     elseif obj.hasTag("ScoreBoard") then
       if G.d.action.special.id == "mobile_score_board" then
         debug("dropped mobile scoreboard") --DEBUG
@@ -4598,7 +4767,7 @@ function onObjectDrop(pcol, obj)
       elseif G.d.action.special.id == "IK_quarantine" then
         debug("dropped mobile scoreboard as quarantine") --DEBUG
         if region and addQuarantine(region, obj.getGUID()) then
-          Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end)
+          Wait.condition(function() G.obj.snaps[obj.getGUID()] = obj.getPosition() end, function() return obj.resting end, 5)
         else snapBack(obj.getGUID()) end
       else
         debug("ERROR: invalid action special for scoreboard drop")
@@ -4693,7 +4862,7 @@ function startOptions(player, value, id)
   end
   UI_setAttribute(id,"isOn",setting)
 end
---[[ Handler for clicks on action cards. Active player selecting a card.
+--[[ Handler for clicks on base game action cards. Active player selecting a card.
 ]]
 function cardClick(card, pcol, alt)
   if env.trace then log("cardClick() "..pcol..", "..card.getGUID()) end
@@ -4879,7 +5048,7 @@ function bidButton(player, button, id)
     updatePlayerBoardUI(player.color)
   end
 end
---[[ Call fn, set the I&K bridge regions when dropped.
+--[[ EXTERNAL Call fn, set the I&K bridge regions when dropped.
 --]]
 function setBridge(params)
   if env.trace then log("setBridge():");log(params) end
@@ -5204,7 +5373,7 @@ function returnToCourt(pcol, guid)
     o.setLock(false)
     o.setPosition(board.positionToWorld(C.court_pos_l[index]))
     o.setRotation({0,0,0})
-    Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+    Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
     table.insert(G.d.players[pcol].court, guid)
     G.obj.snaps[guid] = board.positionToWorld(C.court_pos_l[index])
   else
@@ -5249,10 +5418,9 @@ function returnToProvinces(pcol, guid, fast)
   local index = #G.d.players[pcol].provinces + 1
   if index < 30 then
     o.setLock(false)
-    -- o.setPosition(board.positionToWorld(C.prov_pos_l[index]))
     o.setPositionSmooth(board.positionToWorld(C.prov_pos_l[index]), false, fast)
     o.setRotation({0,0,0})
-    Wait.condition(function() o.setLock(true) end, function() return o.resting end)
+    Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
     table.insert(G.d.players[pcol].provinces, guid)
     G.obj.snaps[guid] = board.positionToWorld(C.prov_pos_l[index])
   else

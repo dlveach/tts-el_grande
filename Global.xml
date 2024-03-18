@@ -5,7 +5,7 @@
 
 <Defaults>
   <!-- <Toggle textColor="rgb(0.8,0.8,0.8)" /> -->
-  <Toggle tooltipTextColor="rgb(0.8,0.8,0)" tooltipBorderColor="rgb(0.7,0.7,0)" tooltipBackgroundImage="Sprites/Layout/Outline"
+  <Toggle tooltipTextColor="rgb(0.8,0.8,0)" tooltipBorderColor="rgb(0.7,0.7,0)"
     tooltipBackgroundColor="rgba(0,0,0,1)" tooltipPosition="Right" tooltipOffset="-60" />
   <Toggle textColor="#eab676" colors="#803e13|rgb(0.8,0.4,0)|rgb(0.8,0.4,0)|Gray" />
 </Defaults>
