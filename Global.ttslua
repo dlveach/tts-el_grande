@@ -775,6 +775,13 @@ function startBidPhase()
       o.setScale({1.87,1,1.87})
     end
   end
+  --remove any "this round only" effects
+  for r,rd in pairs(G.obj.regions) do
+    if rd.protected then
+      rd.protected = false
+      object_UI_setAttribute(r,"protected","active",false)
+    end
+  end
 end
 --[[ Return action data to initial state
 --]]
@@ -1961,6 +1968,41 @@ function doSpecial(pcol)
     pdata.undo_button = false
     G.d.action.disallow_finished = true
     updatePlayerBoardUI(pcol)
+  elseif special.id == "royal_protection" then
+    log("setup region selection for royal protection action")
+    pdata.allowed_regions = {}
+    for i,g in ipairs(C.region_guids) do
+      if not(G.obj.regions[g].king or G.obj.regions[g].quarantine or G.obj.regions[g].protected) then
+        local n = 0; for _,list in pairs(G.obj.regions[g].caballeros) do n = n + sizeOf(list) end
+        if n <= 6 then table.insert(pdata.allowed_regions,i) end
+      end
+    end
+    if #pdata.allowed_regions == 0 then
+      log("handle case no regions allowed")
+      a.stage = "special"
+      a.stage_status = "No Regions to select!"
+      a.disallow_finished = false
+      pdata.action_ui = true
+      pdata.undo_button = false
+      pdata.done_button = false
+      updatePlayerBoardUI(pcol)
+      return
+    end
+    a.status.waitlist = {}
+    table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
+    a.status.info = a.name..":\n"..a.description
+    a.waitlist = {pcol}
+    a.waiting = 1
+    a.stage = "waiting"
+    updateStatusUI(a.status)
+    pdata.undo_button = false
+    pdata.done_button = true
+    pdata.disk_button = true
+    pdata.show_disk = true
+    pdata.action_ui = false
+    pdata.selected_region = pdata.allowed_regions[math.random(#pdata.allowed_regions)]
+    a.disallow_finished = true
+    updatePlayerBoardUI(pcol)
   else
     log("ERROR: processAction() unhandled special id "..tostring(special.id)); return --DEBUG
   end
@@ -3122,6 +3164,24 @@ function playerDone(pcol)
             pdata.held_cards[pdata.power_card].region = region
             object_UI_setAttribute(region,"limit_text","text",tostring(r.caballero_limit))
             object_UI_setAttribute(region,"limit","active",true)
+          elseif a.special.id == "royal_protection" then
+            log("Player selected region, set royal protection on the region")
+            local region = C.region_guids[pdata.selected_region]
+            local r = G.obj.regions[region]
+            getObjectFromGUID(region).highlightOn(Color["Yellow"], 1.5)
+            a.undo.special["royal_protection_"..region] = {id="royal_protection", pcol=pcol, r=region,}
+            a.stage_status = "Region selected"
+            a.stage = "special"
+            pdata.undo_button = false
+            pdata.done_button = false
+            pdata.show_disk = false
+            pdata.disk_button = false
+            pdata.action_ui = true
+            a.disallow_finished = false
+            updatePlayerBoardUI(pcol)
+            updateBoardUI()
+            r.protected = true
+            object_UI_setAttribute(region,"protected","active",true)
           end
         end
       else
@@ -3736,8 +3796,8 @@ function undo(u)
     table.insert(G.d.players[u.pcol].power_cards,u.g)
   elseif u.id == "region_score_double" then --WORKING
     log("undo double region scoring")
-    local r = G.obj.regions[u.r]
-    r.double_scoring = nil
+    local rd = G.obj.regions[u.r]
+    rd.double_scoring = nil
     updateBoardUI()
   elseif u.id == "remove_face_up" then --WORKING
     log("undo remove face up card action")
@@ -3767,6 +3827,11 @@ function undo(u)
         log("ERROR: undo():remove_face_up: unhandled card action id")
       end
     end
+  elseif u.id == "royal_protection" then --WORKING
+    log("undo royal protection")
+    local rd = G.obj.regions[u.r]
+    rd.protected = nil
+    object_UI_setAttribute(u.r,"protected","active",false)
   else
     log("ERROR: undo() unknown id")
   end
@@ -3785,7 +3850,12 @@ function startScoring(regions, special, subtitle)
   if env.trace then log("startScoring() "..tostring(special)) end
   local s_special = special or false
   if not(s_special) then
+    --End of round scoring
     for p,pd in pairs(G.d.players) do pd.active=false;pd.done = false; updatePlayerBoardUI(p) end
+
+    --TODO: remove any quarantines
+    log("---TODO: remove any quarantines from regions before general scoring")
+
   end
   local s_regions = regions or {1,2,3,4,5,6,7,8,9}
   local function sortRegions(reg)
@@ -4329,16 +4399,20 @@ function startScoring(regions, special, subtitle)
         updateBoardUI()
       end
     else
-      --clear any player/modifier flags for general scoring
+      --clear any region/player/modifier flags for general scoring, trash relevant cards, etc.
       for p,pd in pairs(G.d.players) do
         if pd.espionage then
-          -- table.remove(pd.held_cards,indexOf(pd.held_cards,pd.espionage))
           local trash = getObjectFromGUID(C.trash)
           trash.putObject(getObjectFromGUID(pd.espionage))
           pd.held_cards[pd.espionage] = nil
           pd.espionage = nil
         end
       end
+      local ub = false
+      for _,rd in pairs(G.obj.regions) do
+        if rd.double_scoring then rd.double_scoring = nil; ub = true end
+      end
+      if ub then updateBoardUI() end
     end
     -- ///////////// return to game state prior to scoring ////////////////
     G.d.phase = backup.phase

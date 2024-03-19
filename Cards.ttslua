@@ -168,7 +168,9 @@ power_cards = {
   [35] = { name = "Coup!", description="Opp Grandes go\nto the Castillo",
     prov=4, special={id="IK_coup", immediate=true, desc="TODO",},
   },
-  [40] = {}, --TODO
+  [40] = {name="Veto",description="", --TODO:WIP  Lots to test here!
+    prov=4, special={id="veto"},
+  },
   [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
@@ -185,14 +187,18 @@ power_cards = {
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
   [75] = {}, --TODO
-  [80] = {}, --TODO
+  [80] = { name="Relocate", description="Move Grande and 3 from 1 to 1 other region", --TODO:WIP
+    prov=3, special={id="relocate", desc="Move Grande + 3"},
+  },
   [90] = {name="Mobile ScoreBoard",description="Place or move a\nMobile Score Board",
     prov=4, special={id="mobile_score_board",desc="Move a scoreboard"},
   },
-  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region",
+  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region", --TODO: need to remove before general scoring
     prov=3, special={id="IK_quarantine", desc="Choose a region",},
   },
-  [95] = {}, --TODO
+  [95] = { name="Royal Protection", description="Select a region to recieve\nKing's protection this round",
+    prov=3, special={id="royal_protection", desc="TODO desc"},
+  },
   [100] = { name="Special Scoring",description="Score all the\n'4' Regions",
     prov=3, special={id="special_scoring",immediate=true,region_score=4,desc="Special Scoring: 4 regions"},
   },
