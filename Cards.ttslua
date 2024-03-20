@@ -238,7 +238,8 @@ power_cards = {
   [180] = { name="King",description="Execute the King action",
     prov=0, special={id="IK_king",desc="King action"},
   },
-  [0] = {}, --TODO
+  [0] = { name="Joker", description="Choose your Power Card last",
+    prov=0, special={id="joker"}, desc="TODO: Joker"},
 }
 IK_king = { name="King card",description="Move the King\nto any Region",
   special={id="king",IK="IK_king",dest="any_region",desc="Move the King"},

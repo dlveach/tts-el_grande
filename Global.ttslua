@@ -24,7 +24,7 @@ env.debug = false
 env.trace = true
 env.trace2 = false
 -- env.test_players = {"Blue","Red","Green","Purple","Yellow"}
-env.test_players = {"Green","Purple",}
+-- env.test_players = {"Green","Red","Purple",}
 env.in_dev = false --leave some objects interactable for dev purposes.
 env.use_saved_data = true
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
@@ -309,6 +309,10 @@ end
 ]]
 function setupGame(player, button, id)
   if env.trace then log("setupGame() "..player.color..", "..tostring(id)) end
+  -- setup players
+  local seated = getSeatedPlayers()
+  if env.test_players then seated = env.test_players
+  elseif #seated < 2 then broadcastToAll("At least 2 players required to play this game"); return end
   UI_setAttribute("start_pnl","active",false)
   for i=1,4 do
     local g = C.stacks[i]
@@ -316,10 +320,6 @@ function setupGame(player, button, id)
     assert(stack, "setupGame() missing card stack for guid "..tostring(g))
     stack.shuffle()
   end
-  -- setup players
-  local seated = getSeatedPlayers()
-  if env.test_players then seated = env.test_players
-  elseif #seated < 2 then broadcastToAll("At least 2 players required to play this game"); return end
   local plist="Pink"
   local n = math.random(#C.table_order)
   for i=1,#C.table_order do
@@ -2798,6 +2798,33 @@ function playerDone(pcol)
     updatePlayerBoardUI(pcol)
     if #G.d.players_to_bid == 0 then
       startActionPhase()
+    elseif pdata.power_bid == 0 then --special case, Joker played
+      debug("handle the Joker, reorder player order and continue bidding phase")
+      local i = indexOf(G.d.player_order, pcol)
+      if i > 0 then
+        G.d.players[pcol].active = false
+        G.d.players[pcol].done = false
+        updatePlayerBoardUI(G.d.active_player)
+        table.remove(G.d.player_order,i)
+        table.insert(G.d.player_order,pcol) --move to last
+        --update display
+        local list = G.d.status.waitlist
+        for n=1,#list do
+          if list[n].player_color == pcol then
+            table.remove(list,n)
+            table.insert(list,{player_color=pcol,player_status=""}) --move to last
+            break
+          end
+        end
+        --set up new current bidder as active player
+        G.d.status.waitlist[i].player_status = "Active"
+        updateStatusUI(G.d.status)
+        G.d.active_player = G.d.player_order[i]
+        G.d.players[G.d.active_player].active = true
+        updatePlayerBoardUI(G.d.active_player)
+      else
+        debug("ERROR: player "..tostring(pcol).." not in G.d.player_order"); return
+      end
     else
       for i,e in ipairs(G.d.status.waitlist) do
         if e.player_color == pcol then e.player_status = "Set"; break end
@@ -2809,6 +2836,12 @@ function playerDone(pcol)
       G.d.active_player = G.d.player_order[n]
       G.d.players[G.d.active_player].active = true
       updatePlayerBoardUI(G.d.active_player)
+      if G.d.players[G.d.active_player].power_card and G.d.players[G.d.active_player].power_bid == 0 then
+        --this player had played a Joker, move it to the trash
+        local o = getObjectFromGUID(G.d.players[G.d.active_player].power_card)
+        getObjectFromGUID(C.trash).putObject(o)
+        G.d.players[G.d.active_player].power_card = nil
+      end
       if not(G.env.intrigue_king_exp) then
         for g,d in pairs(G.obj.bid_buttons) do
           if not(d.selected) and indexOf(d.players,G.d.active_player) > 0 then d.visibility = {G.d.active_player}
@@ -4797,7 +4830,8 @@ function onObjectDrop(pcol, obj)
       end
       local pdata = G.d.players[pcol]
       if not(pdata.active) then obj.deal(1,pcol); return end
-      if pdata.power_card then  obj.deal(1,pcol); return end
+      if pdata.power_card then obj.deal(1,pcol); return end
+      if obj.value == 0 and #G.d.players_to_bid == 1 then obj.deal(1,pcol); return end --only allowed if > 1 player left in bidding
       local board = getObjectFromGUID(C.player_boards[pcol])
       obj.setPosition(board.positionToWorld(C.card_pos_l))
       Wait.condition(function() obj.setLock(true) end, function() return obj.resting end, 5)
@@ -4807,7 +4841,7 @@ function onObjectDrop(pcol, obj)
       updatePlayerBoardUI(pcol)
       pdata.power_card = obj.getGUID()
       pdata.power_bid = obj.value
-      table.remove(G.d.players_to_bid,indexOf(G.d.players_to_bid,pcol))
+      if obj.value > 0 then table.remove(G.d.players_to_bid,indexOf(G.d.players_to_bid,pcol)) end
     else snapBack(obj.getGUID()) end
   elseif G.d.phase == "actions" then
     if obj.hasTag("Veto") then

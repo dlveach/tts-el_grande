@@ -9,7 +9,7 @@
   <Panel id="protected" height="70" width="45" scale="1 1" color="rgba(0,0,0,0)" position="45 25 -7" raycastTarget="false" rotation="0 0 180" active="false">
     <Image id="protected_image" image="Protected" preserveAspect="false" />
   </Panel>
-  <Panel id="limit" height="70" width="45" scale="1 1" color="rgba(0,0,0,0)" position="45 25 -7" raycastTarget="false" rotation="0 0 180" active="true">
+  <Panel id="limit" height="70" width="45" scale="1 1" color="rgba(0,0,0,0)" position="45 25 -7" raycastTarget="false" rotation="0 0 180" active="false">
     <Text id="limit_text" font="Arial" fontStyle="Bold" shadow="rgba(0,0,0,1)" fontSize="40" color="White" text="6"/>
   </Panel>
   <Panel id="label" height="40" width="120" scale="1 1" color="rgba(0,0,0,0)" position="-50 60 -7" raycastTarget="false" rotation="0 0 180" active="false">
