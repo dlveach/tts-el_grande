@@ -9,6 +9,7 @@
   -TODO: retest Veto now that wait.condition over use is better
   -TODO: get rid of 'ignore_wait' flag when sure that coros are all safe
   -TODO: break up scoring coroutine. Make scoring state/data persist. Make rewind/reload safe.
+  -TODO: waitLock(obj) utility function with timeout that logs debug info.  Maybe put in utils.ttslua?
 
   --Probably highly desired by players
   -TODO: remove cube from pending move when placed back in origin region, reset things back to original state wrt that cube and origin region.
@@ -1605,9 +1606,51 @@ function doSpecial(pcol)
       a.waiting = 1
       updateStatusUI(a.status)
       a.undo.special[tostring(Time.time).."special_scoring_selected"] = {id="special_scoring_selected"}
+    elseif special.no_maj then
+      pdata.allowed_regions = {}
+      for i,g in ipairs(C.region_guids) do
+        local rd = G.obj.regions[g]
+        if sizeOf(rd.caballeros[pcol]) == 2 then
+          for p,d in pairs(rd.caballeros) do
+            if p ~= pcol and sizeOf(d) > 2 then
+              table.insert(pdata.allowed_regions,i)
+              break
+            end
+          end
+        end
+      end
+      if #pdata.allowed_regions == 0 then
+        log("special_scoring:no_maj: handle case no regions allowed")
+        a.stage = "special"
+        a.stage_status = "No Regions to select!"
+        a.disallow_finished = false
+        pdata.action_ui = true
+        pdata.undo_button = false
+        pdata.done_button = false
+        updatePlayerBoardUI(pcol)
+        return
+      end
+      a.stage = "waiting"
+      a.status.info = a.name.."\n"..special.desc
+      a.status.waitlist = {}
+      table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
+      a.waitlist = {pcol}
+      a.waiting = 1
+      a.allow_veto = true
+      pdata.active = true
+      pdata.waiting = true
+      pdata.show_disk = true
+      pdata.disk_button = true
+      pdata.undo_button = false
+      pdata.done_button = true
+      pdata.action_ui = false
+      pdata.selected_region = pdata.allowed_regions[math.random(1,#pdata.allowed_regions)]
+      updatePlayerBoardUI(pcol)
+      updateStatusUI(a.status)
     else
       log("WARN: processAction() unknown special_scoring action")
     end
+    a.undo.special["special_scoring_"..tostring(Time.time)] = {id="scoring_window",hide=true}
   elseif Split(special.id,"_")[1] == "move" then
     log("move special action")
     a.allow_veto = true
@@ -1732,21 +1775,21 @@ function doSpecial(pcol)
     log("special action 'Evict'")
     a.stage = "waiting"
     a.status.waitlist={}
-    a.status.info = "Evict: Active Player\nSelect a region\nto evict opponents"
+    a.status.info = a.name.."\n"..a.description
     table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
     updateStatusUI(a.status)
-    local pdata = G.d.players[pcol]
-    pdata.active = true
-    pdata.waiting = true
-    pdata.show_disk = true
-    pdata.disk_button = true
-    pdata.show_stage = false
     pdata.allowed_regions = {}
     for i,g in ipairs(C.region_guids) do
       if not(G.obj.regions[g].king or G.obj.regions[g].quarantine or G.obj.regions[g].protected) then
         table.insert(pdata.allowed_regions,i)
       end
     end
+    pdata.selected_region = pdata.allowed_regions[math.random(1,#pdata.allowed_regions)]
+    pdata.active = true
+    pdata.waiting = true
+    pdata.show_disk = true
+    pdata.disk_button = true
+    pdata.show_stage = false
     pdata.undo_button = false
     pdata.done_button = true
     pdata.action_ui = true
@@ -1916,10 +1959,11 @@ function doSpecial(pcol)
     end
     a.status.waitlist = {}
     table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
+    a.stage = "waiting"
     a.status.info = a.name..":\n"..a.description
     a.waitlist = {pcol}
     a.waiting = 1
-    a.stage = "waiting"
+    a.allow_veto = true
     updateStatusUI(a.status)
     pdata.undo_button = false
     pdata.done_button = true
@@ -2001,6 +2045,16 @@ function doSpecial(pcol)
     pdata.show_disk = true
     pdata.action_ui = false
     pdata.selected_region = pdata.allowed_regions[math.random(#pdata.allowed_regions)]
+    a.disallow_finished = true
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "relocate" then
+    log("--- TODO: setup for relocate special action")
+    a.stage_status = "Moved 0 / "..tostring(special.max)
+    a.caballeros_moved = 0
+    a.status.waitlist = {}
+    a.status.info = a.name..":\n"..a.description
+    a.description = special.desc
+    updateStatusUI(a.status)
     a.disallow_finished = true
     updatePlayerBoardUI(pcol)
   else
@@ -2094,7 +2148,8 @@ function addCaballero(player, region, color, guid)
       if Split(s.id,"_")[1] == "move" then
         log("is a move special action")
         if player ~= G.d.active_player then debug("failed: "..player.." is not the active player"); return false end
-        any_region = contains(s, "any_region")
+        -- any_region = contains(s, "any_region")
+        any_region = s.dest == "any_region"
         allowed = true
         if Split(s.id,"_")[2] == "either" then either = true end
         if Split(s.id,"_")[2] == "opp" then opp = true end
@@ -2104,6 +2159,12 @@ function addCaballero(player, region, color, guid)
         min = s.min
         if s.each then each = true end
         if s.total then total = s.total end
+      elseif s.id == "relocate" then
+        if not(s.destination) then s.destination = region
+        elseif region ~= s.destination then debug("failed: only one destination region allowed"); return false end
+        max = s.max
+        any_region = s.dest == "any_region"
+        allowed = true
       end
       if s.single_origin then
         if s.origin then
@@ -2278,10 +2339,18 @@ function setGrande(region, color)
     if a.stage == "special" then
       debug("set Grande during special")
       local allowed, any_region, opp = false, false, false
-      if contains(a.special, "grande") then
+      if a.special.id == "grande" then
         allowed = true
         any_region = a.special.dest == "any_region"
         if a.special.opp then opp = true end
+      elseif a.special.id == "relocate" then
+        if color ~= a.player then debug("failed opponent check"); return false end
+        if not(a.special.destination) then a.special.destination = region
+        elseif region ~= a.special.destination then debug("failed: only one destination region allowed"); return false end
+        allowed = true
+        any_region = a.special.dest == "any_region"
+        a.disallow_finished = false
+        updatePlayerBoardUI(a.player)
       end
       if color ~= a.player and not(opp) then debug("failed opponent check"); return false end
       if not(allowed) then debug("failed special check"); return false end
@@ -2629,14 +2698,13 @@ function addQuarantine(region, guid)
   if not(sb.is_face_down) then sb.flip() end
   -- update regions quarantine status
   rd.quarantine = guid
-  object_UI_setAttribute(region,"border_image","image","Quarantined")
-  object_UI_setAttribute(region,"border","active",true)
+  object_UI_setAttribute(region,"quarantined","active",true)
   object_UI_setAttribute(region,"label_text","text","Quarantined")
   object_UI_setAttribute(region,"label_text","color","Red")
   object_UI_setAttribute(region,"label","active",true)
   if source and not(placed) then
     G.obj.regions[source].quarantine = nil
-    object_UI_setAttribute(source,"border","active",false)
+    object_UI_setAttribute(source,"quarantined","active",false)
     object_UI_setAttribute(source,"label","active",false)
   elseif source then
     if G.d.scoring_mask then object_UI_setAttribute(source, "scoreboard_image", "image", G.d.scoring_mask)
@@ -2657,7 +2725,6 @@ function addQuarantine(region, guid)
   G.d.MSB[guid].quarantine = true
   -- enable player buttons
   local pdata = G.d.players[G.d.action.player]
-  pdata.disallow_finished = false
   G.d.action.disallow_finished = false
   updatePlayerBoardUI(G.d.action.player)
   return true
@@ -2904,7 +2971,7 @@ function playerDone(pcol)
                 msg = msg.."]"
               end
               G.d.players[G.d.active_player].allow_undo = undo_ok
-              a.allow_veto = false
+              a.allow_veto = false --TODO: should veto be allowed when secret region(s) is(are) revealed?  Check inside startScoring()?
               a.stage_status = "Special Scoring"
               debug("special_scoring, secret, starting scoring")
               startScoring(regions,true,msg)
@@ -2921,7 +2988,7 @@ function playerDone(pcol)
               pd.disable_reset = true
               updatePlayerBoardUI(p)
             end
-          elseif a.special.id == "special_scoring" and a.special.selected then
+          elseif a.special.id == "special_scoring" and a.special.selected then --special case for score one of 3 selected regions
             if a.special.final_region_selected then
               --launch the scoring
               a.allow_veto = false
@@ -2981,6 +3048,20 @@ function playerDone(pcol)
             else
               log("ERROR: playerDone() invalid state for score region selected by opponent from selected region candidates"); return  --DEBUG
             end
+          elseif a.special.id == "special_scoring" and a.special.no_maj then --special case for score where 2 but not the majority
+            debug("no_maj: start special scoring")
+            pdata.show_disk = false
+            pdata.disk_button = false
+            pdata.action_ui = false
+            pdata.done = false
+            pdata.undo_button = false
+            pdata.done_button = false
+            pdata.allow_undo = true
+            updatePlayerBoardUI(pcol)
+            local regions = {pdata.selected_region}
+            a.allow_veto = false --TODO: should veto be allowed when secret region(s) is(are) revealed?  Check inside startScoring()?
+            a.stage_status = "Special Scoring"
+            startScoring(regions,true,"Selected: ["..tostring(pdata.selected_region).."]")
           elseif a.special.id == "evict" then
             if a.special.evict_stage == 1 then
               debug("action:evict, finished wait on active player to select evict region")
@@ -3182,6 +3263,11 @@ function playerDone(pcol)
             updateBoardUI()
             r.protected = true
             object_UI_setAttribute(region,"protected","active",true)
+          elseif a.special.id == "relocate" then
+            debug("--- TODO: player done action for relocate")
+
+          else
+            debug("ERROR: no matching special.id to execute after waiting completed")
           end
         end
       else
@@ -3757,7 +3843,7 @@ function undo(u)
     local sb = getObjectFromGUID(u.g)
     local r = G.obj.regions[u.region]
     r.quarantine = nil
-    object_UI_setAttribute(u.region,"border","active",false)
+    object_UI_setAttribute(u.region,"quarantined","active",false)
     object_UI_setAttribute(u.region,"label","active",false)
     sb.setLock(false)
     if u.source and u.placed then
@@ -3768,8 +3854,7 @@ function undo(u)
     elseif u.source then
       if not(sb.is_face_down) then sb.flip() end
       G.obj.regions[u.origin].quarantine = true
-      object_UI_setAttribute(u.origin,"border_image","image","Quarantined")
-      object_UI_setAttribute(u.origin,"border","active",true)
+      object_UI_setAttribute(u.origin,"quarantined","active",true)
       object_UI_setAttribute(u.origin,"label_text","text","Quarantined")
       object_UI_setAttribute(u.origin,"label_text","color","Red")
       object_UI_setAttribute(u.origin,"label","active",true)
@@ -3832,6 +3917,13 @@ function undo(u)
     local rd = G.obj.regions[u.r]
     rd.protected = nil
     object_UI_setAttribute(u.r,"protected","active",false)
+  elseif u.id == "scoring_window" then
+    log("undo: hide the special scoring window")
+    UI_setAttribute("scoring_pnl","visibility","Pink")
+  elseif u.id == "relocate" then --TODO:
+    log("undo relocate action")
+
+
   else
     log("ERROR: undo() unknown id")
   end
@@ -3852,10 +3944,21 @@ function startScoring(regions, special, subtitle)
   if not(s_special) then
     --End of round scoring
     for p,pd in pairs(G.d.players) do pd.active=false;pd.done = false; updatePlayerBoardUI(p) end
-
-    --TODO: remove any quarantines
-    log("---TODO: remove any quarantines from regions before general scoring")
-
+    --remove any quarantines
+    for r,rd in pairs(G.obj.regions) do
+      if rd.quarantine then
+        G.d.MSB[rd.quarantine].quarantine = false
+        G.d.MSB[rd.quarantine].placed = false
+        local o = getObjectFromGUID(rd.quarantine)
+        o.setLock(false)
+        if o.is_face_down then o.flip() end
+        o.setPosition(G.d.MSB[rd.quarantine].home_pos)
+        Wait.condition(function() o.setLock(true) end, function() return o.resting end, 5)
+        rd.quarantine = nil
+        object_UI_setAttribute(r,"quarantined","active",false)
+        object_UI_setAttribute(r,"label","active",false)
+      end
+    end
   end
   local s_regions = regions or {1,2,3,4,5,6,7,8,9}
   local function sortRegions(reg)
@@ -4102,9 +4205,9 @@ function startScoring(regions, special, subtitle)
       s = s.." ]"
       s_info.subtitle = "Regions to be scored:\n"..s
       s_info.show = true
+      updateUI(s_info)
       if G.d.veto then
-        s_info.veto_check = true
-        updateUI(s_info)
+        s_info.veto_check = true --TODO: what is this flag for?
         log("Pause a special scoring for a veto check. ---TODO: move out of coro into startScoring()?")
         G.d.confirm_lock = true
         UI_setAttribute("veto_msg_txt","text","Veto Special Scoring?")
@@ -4122,7 +4225,6 @@ function startScoring(regions, special, subtitle)
         end
       else
         s_info.veto_check = false
-        updateUI(s_info)
       end
     end
     -- /////////////////// Secret region selection ///////////////////
