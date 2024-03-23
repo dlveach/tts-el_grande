@@ -186,7 +186,9 @@ power_cards = {
   [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
-  [75] = {}, --TODO
+  [75] = { name="Reserves", description="One cube from Provinces on card, place before any scoring", --TODO:WIP  --TODO: test with remove_face_up
+    prov=3, special={id="reserves", leave_face_up=true, hold_card=true, immediate=true, desc="TODO: reserves"},
+  },
   [80] = { name="Relocate", description="Move Grande and any 3 Caballeros to one region",
     prov=3, special={id="relocate", max=3, dest="any_region", desc="Move Grande & any 3 Caballeros"},
   },
@@ -208,7 +210,7 @@ power_cards = {
   [120] = { name="Special Scoring",description="Score all the\n'5' Regions",
     prov=2, special={id="special_scoring",immediate=true,region_score=5,desc="Special Scoring: 5 regions"},
   },
-  [125] = { name="Remove a card", description="Remove a card with\n'Leave Face Up'",  --TODO: should this respect king/quarantine/protected?
+  [125] = { name="Remove a card", description="Remove a card with\n'Leave Face Up'",  --TODO: test with 'reserves' --TODO: should this respect king/quarantine/protected?
     prov=3, special={id="remove_face_up", desc="Click on a card"},
   },
   [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring",
