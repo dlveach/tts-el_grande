@@ -56,6 +56,18 @@ C.face_up_button={
   height=1000,
   color={r=0,g=0,b=0,a=0},
 }
+C.veto_card_button={
+  click_function="vetoCardClick",
+  function_owner=Global,
+  position={0,1,0},
+  width=800,
+  height=400,
+  label="Veto!",
+  font_size=200,
+  font_color={r=0.9,g=0.9,b=0},
+  color={r=0.7,g=0.3,b=0,a=1},
+  hover_color={r=1,g=0.4,b=0,a=1},
+}
 --TODO: cleanup definiton. Rot={0,0,0}, remove unnecessary default data
 C.grande_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"a43cfd","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Grande","Snap":true,"Sticky":true,"Tags":["Grande"],"Tooltip":true,"Transform":{"posX":-40.3152770996094,"posY":1.46000003814697,"posZ":-19.7744293212891,"rotX":3.77321953237697E-07,"rotY":-4.34147695571596E-09,"rotZ":-7.94435166540097E-08,"scaleX":1,"scaleY":1,"scaleZ":1},"Value":0,"XmlUI":""}'
 C.caballero_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"222ecb","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Caballero","Snap":true,"Sticky":true,"Tags":["Caballero"],"Tooltip":true,"Transform":{"posX":-40.3260803222656,"posY":1.21000027656555,"posZ":-21.2416534423828,"rotX":-5.58641488623834E-07,"rotY":-1.5730960512883E-05,"rotZ":-3.4076799693139E-07,"scaleX":0.500000417232513,"scaleY":0.500000417232513,"scaleZ":0.500000417232513},"Value":0,"XmlUI":""}'
@@ -282,7 +294,7 @@ C.IK = {
   intrigue_home_pos={40, 1, -19.84},
   caballero_cards={"8afed5","53c14e","8df350","dd8857","083d68",},
   caballero_home_pos={{40, 1, -12.65},{40, 1, -5.86},{40, 1, 1.03},{40, 1, 7.92},{40, 1, 14.87},},
-  decks={Blue="72374f",Red="31c271",Green="98ed18",Purple="bc4b7e",Yellow="335233",},
+  decks={Blue="5fa1fc",Red="108418",Green="8b1932",Purple="1f1776",Yellow="1d8d38",},
   caballero_pos_l = {{ 1.141, -0.12, 1.631 }, { 0.369, -0.12, 1.631 },},
   card_pos_l = {{ -0.32, -0.12, 1.54 }, { -1.05, -0.12, 1.54 }, { -0.55, -0.12, 1.9 }, { -1.25, -0.12, 1.9 }},
 }

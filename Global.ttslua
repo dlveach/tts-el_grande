@@ -3,8 +3,18 @@
 --TODO: document, credits, etc.
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
+  -MVP TODO items remaining:
+
+  -TODO: maybe implement "missing" cards from player's edition.   Some anyway.
+          Cool:  13, 43, 53 (cool but very hard), 73, 113(maybe, kinda hard), 153
+          Not gonna do: 23, 83,
+
+  -Ongoing stuff
+  -TODO: base game: disable Done/Undo buttons during action (when Finished/Reset are showing).  Only show during action:stage == 'main'
+  -BUG: base game: king card didn't flip face up at start of bidding phase (king card was held by last player before bid phase)
+        WORKAROUND: just unlock and flip it manually.
   -BUG: not locking power card when moved to held_cards area, see code that places the card
-        Maybe fixed?  test this.
+        Maybe fixed with wait 1 frame then wait.condition?  test this.
   -BUG: I&K card 15: moved cube court to board.  Then moved that cube to Castillo.  Undo fails, cannot locate object.  Undo not being updated for Castillo.
   -TODO: retest Veto now that wait.condition over use is better
   -TODO: Mostly done.  Make scoring state/data persist. Make coro rewind/reload safe.
@@ -12,11 +22,16 @@
           If very careful about the rewind then it's ok.
   -TODO: retest the entire base game.  Much shared code changed in implementing I&K expansion
 
+  -Really hard stuff
+  -TODO: how to undo last action step when vetoed.  Would need sequential undo and don't have that.  Also some action steps might create more than
+         one undo entry.  Might be able to modify actions to always set a last action step (similer to an undo entry) but that is a lot of code
+         paths that would need updating.  For now, players need to announce what they're doing and veto player must trigger veto BEFORE they drop
+         the cube or mobile scoreboard etc.  Handling the undo would be MUCH cooler.
+
   --Probably highly desired by players
   -TODO: remove cube from pending move when placed back in origin region, reset things back to original state wrt that cube and origin region.
 
   --Relatively minor finishing things / nice to haves
-  -TODO: destroy unused scoring markers at startup.
   -TODO: create an undo entry that clears scoring history when action that generated it get's undone (special scoring only)
   -TODO: waitLock(obj) utility function with timeout that logs debug info.  Maybe put in utils.ttslua?
 ]]
@@ -37,9 +52,9 @@ env.hide_start_panel = false --for workng on UIs, don't show start panel.
 --[[  defaults for game environment settings ]]
 env.game_verbose = true
 env.short_game = false
-env.intrigue_king_exp = false --TODO: future option
-env.grandissimo_exp = false --TODO: future option
-env.inquisitor_colonies_exp = false --TODO: future expansion
+env.intrigue_king_exp = false --I&K Expansion
+env.grandissimo_exp = false --TODO: future option, maybe
+env.inquisitor_colonies_exp = false --TODO: future expansion, probably not
 --[[ EXPERIMENTAL cube flasher settings]]
 env.flasher_rate = 30 --frames between cube color changes when pending
 env.flasher_debug = false -- periodically log flasher state
@@ -465,6 +480,12 @@ function setupGame(player, button, id)
       e.visibility = simpleDeepCopy(G.d.player_order)
     end
   end
+  --get rid of extra scoring markers
+  for p,g in pairs(C.score_markers) do
+    if not(contains(G.d.player_order,p)) then
+      getObjectFromGUID(g).destruct()
+    end
+  end
   object_UI_setAttribute(C.board, "regions","active",true)
   object_UI_setAttribute(C.castillo,"info","active",true)
   UI_setAttribute("scoring_pnl","active",true)
@@ -663,6 +684,36 @@ function placeStartingCubes()
     pdata.start_caballeros = nil
   end
 end
+--[[ Set up the region selection for I&K extra Caballero placement]]
+function startIKExtraPlacement()
+  if env.trace then log("startIKExtraPlacement()") end
+  G.d.phase = "IK_extra_placement"
+  G.d.waitlist = simpleDeepCopy(G.d.player_order)
+  G.d.status = {}
+  G.d.status.info = "Initial Placement Selection"
+  G.d.status.info = G.d.status.info.."\nSecretly select region for"
+  G.d.status.info = G.d.status.info.."\none additional Caballero"
+  G.d.status.waitlist = {}
+  local allowed = {1,2,3,4,5,6,7,8,9}
+  for i=1,5 do
+    if i <= #G.d.player_order then
+      local pcol = G.d.player_order[i]
+      object_UI_setAttribute(C.player_boards[pcol],"button_pnl","active",true)
+      table.insert(G.d.status.waitlist,{player_color=pcol,player_status="Deciding"})
+      G.d.players[pcol].active = true
+      G.d.players[pcol].waiting = true
+      G.d.players[pcol].undo_button = false
+      G.d.players[pcol].done_button = true
+      G.d.players[pcol].disk_button = true
+      G.d.players[pcol].show_disk = true
+      G.d.players[pcol].allowed_regions = allowed
+      G.d.players[pcol].selected_region = allowed[math.random(#allowed)]
+      updatePlayerBoardUI(pcol)
+    end
+  end
+  G.d.status.show = true
+  updateStatusUI(G.d.status)
+end
 --[[ Setup and begin the order bidding phase
 ]]
 function startBidPhase()
@@ -716,20 +767,24 @@ function startBidPhase()
     G.d.status.show = true
     updateStatusUI(G.d.status)
     -- Check to see if veto card has expired
-    if G.d.veto_round and G.d.round - G.d.veto_round >= 2 then
-      local card = getObjectFromGUID(G.d.players[G.d.veto].veto_card)
-      assert(card, "startBidPhase(): unable to locate veto card object")
-      getObjectFromGUID(C.trash).putObject(card)
-      G.d.players[G.d.veto].veto_card = nil
-      G.d.veto = nil
-      G.d.veto_round = nilm
+    if G.env.intrigue_king_exp then
+      log("--- startBidPhase(): Remove I&K Veto cards at start of next round")
+      if G.d.veto_player then G.d.veto_player = nil end
+    else
+      if G.d.veto_round and G.d.round - G.d.veto_round >= 2 then
+        local card = getObjectFromGUID(G.d.players[G.d.veto_player].veto_card)
+        assert(card, "startBidPhase(): unable to locate veto card object")
+        getObjectFromGUID(C.trash).putObject(card)
+        G.d.players[G.d.veto_player].veto_card = nil
+        G.d.veto_player = nil
+        G.d.veto_round = nil
+      end
     end
     -- Reveal Action Cards
     if #G.d.action_cards > 0 then
       -- trash all remaining cards except the King card
       local trash = getObjectFromGUID(C.trash)
       for _,g in ipairs(G.d.action_cards) do
-        -- if g ~= C.stacks[5] then getObjectFromGUID(g).destruct() end --TODO: trash or destroy?
         local o = getObjectFromGUID(g)
         o.setLock(false)
         if g ~= C.stacks[5] then trash.putObject(o) end
@@ -847,6 +902,14 @@ function startActionPhase()
           if pd.power_bid > G.d.players[e].power_bid then table.insert(temp,i,c); add=false; break end
           if add then table.insert(temp, c); break end
         end
+      end
+      --Check for any player played the veto card
+      if power_cards[pd.power_bid].special.id == "veto" then
+        G.d.veto_player = c
+        pd.IK_special_action = false
+        --enable veto button on the card
+        local card = getObjectFromGUID(pd.power_card)
+        card.createButton(C.veto_card_button)          --TODO: move this to processAction():special with check for veto allowed
       end
     end
     G.d.player_order = temp
@@ -974,12 +1037,42 @@ function startPlayerActions(pcol)
   if G.env.intrigue_king_exp then
     cinfo = power_cards[pdata.power_bid]
     a.name = cinfo.name
+    a.court = pdata.court_limit --HACK: why is this set in player data?  Should get from cinfo?
     if cinfo.special.id == "veto" then
-      log("TODO: handle I&K Veto power card")
+      log("TODO: startPlayerActions(), player holds I&K Veto power card")
+      pdata.IK_special_action = false
+      a.status.info = "Veto Player has\nno special action\nduring turn"
+      a.IK.special = simpleDeepCopy(cinfo.special)
+      a.IK.special.completed = true --don't trigger unused action warn on Done
+      if (pdata.IK_king_card or pdata.IK_intrigue_card) and #G.d.player_order > 3 then
+        if pdata.IK_king_card then
+          a.IK.king = simpleDeepCopy(IK_king)
+          pdata.IK_king_action = true
+          pdata.IK_intrigue_action = false
+        elseif pdata.IK_intrigue_card then
+          a.IK.intrigue = simpleDeepCopy(IK_intrigue)
+          pdata.IK_king_action = false
+          pdata.IK_intrigue_action = true
+        end
+      elseif (pdata.IK_king_card or pdata.IK_intrigue_card) and #G.d.player_order <= 3 then
+        if G.d.veto_player then --hasn't used it yet, allow king or intrigue as appropriate
+          if pdata.IK_king_card then
+            a.IK.king = simpleDeepCopy(IK_king)
+            pdata.IK_king_action = true
+            pdata.IK_intrigue_action = false
+          elseif pdata.IK_intrigue_card then
+            a.IK.intrigue = simpleDeepCopy(IK_intrigue)
+            pdata.IK_king_action = false
+            pdata.IK_intrigue_action = true
+          end
+        else --veto has been used, only allow caballero action
+          pdata.IK_king_action = false
+          pdata.IK_intrigue_action = false
+        end
+      end
     else
       a.status.info = a.status.info..a.name
       a.IK.special = simpleDeepCopy(cinfo.special)
-      a.court = pdata.court_limit --HACK: why is this set in player data?  Should get from cinfo?
       --set up I&K king/intrigue action if owned
       if (pdata.IK_king_card or pdata.IK_intrigue_card) and #G.d.player_order > 3 then
         pdata.IK_special_action = false
@@ -1024,7 +1117,7 @@ function startPlayerActions(pcol)
       card.deal(1,pcol)
       pdata.veto_card = card.getGUID()
       table.remove(G.d.action_cards,indexOf(G.d.action_cards,card.getGUID()))
-      G.d.veto = pcol
+      G.d.veto_player = pcol
       G.d.veto_round = G.d.round
     else
       a.status.info = a.status.info..cinfo.name
@@ -1053,6 +1146,7 @@ function processAction(pcol, opt)
     if a.stage == "main" or a.stage == "IK_main" then
       setLockCourt(pcol, false)
       a.stage="court"
+      if a.vetoed then a.vetoed = false end --may have been set so clear it
       a.description = "Move from Court"
       pdata.disable_reset = false
       updatePlayerBoardUI(pcol)
@@ -1065,6 +1159,7 @@ function processAction(pcol, opt)
       pdata.IK_special_action = false
       a.IK.special.completed = true --don't trigger unused action warn on Done
       a.special = simpleDeepCopy(a.IK.king.special)
+      a.name = "The King"
       a.undo.IK_king = {}
       a.undo.IK_king["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
       table.insert(a.sequence,1,"IK_king")
@@ -1075,6 +1170,7 @@ function processAction(pcol, opt)
       pdata.IK_special_action = false
       a.IK.special.completed = true --don't trigger unused action warn on Done
       a.special = simpleDeepCopy(a.IK.intrigue.special)
+      a.name = "Intrigue"
       a.undo.IK_intrigue = {}
       a.undo.IK_intrigue["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
       table.insert(a.sequence,1,"IK_intrigue")
@@ -1115,10 +1211,12 @@ function processAction(pcol, opt)
       if a.IK then --bit of a HACK: override a.special for IK_king or IK_intrique specials
         if a.IK.special.id == "IK_king" then
           a.special = simpleDeepCopy(IK_king.special)
+          a.name = "The King"
           a.special.IK = "special" --this the special, not the King card action
           doSpecial(pcol)
         elseif a.IK.special.id == "IK_intrigue" then
           a.special = simpleDeepCopy(IK_intrigue.special)
+          a.name = "Intrigue"
           a.special.IK = "special" --this the special, not the Intrigue card action
           doSpecial(pcol)
         else
@@ -1218,6 +1316,20 @@ function processAction(pcol, opt)
     else
       a.status.info = "Active Player\nChoose actions for\n"..a.name
       a.description = "Choose an action"
+    end
+    if a.vetoed then
+      --Do some forced things as result of a veto, clear lots of stuff that might have been set
+      pdata.allow_undo = false
+      pdata.show_disk = false
+      pdata.show_stage = false
+      pendingCubes("clear")
+      for g,_ in pairs(G.obj.regions) do
+        local o = getObjectFromGUID(g); o.highlightOff(); o.clearButtons()
+      end
+      for p,pd in pairs(G.d.players) do
+        local o = getObjectFromGUID(C.player_boards[p]); o.clearButtons(); o.highlightOff()
+      end
+      log("--- TODO: processAction():finished: anything else for forced action finish on a Veto?")
     end
     if pdata.allow_undo then pdata.undo_button = true else pdata.undo_button = false end
     pdata.done_button = true
@@ -1334,11 +1446,17 @@ function doSpecial(pcol)
   local a = G.d.action
   local special = a.special
   if special.immediate and special.id ~= "special_scoring" then
-    if G.d.veto and G.d.veto ~= pcol then
+    if G.d.veto_player and G.d.veto_player ~= pcol then
       if not(G.d.veto_declined) then
         log("---TESTING: activate veto check for an immediate special action")
         G.d.confirm_lock = true
-        UI_setAttribute("veto_msg_txt", "text", "Veto "..a.name.." ?")
+        UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
+        UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+        UI_setAttribute("veto_msg_txt","text","Veto _"..a.name.."_?")
+        if G.env.intrigue_king_exp then
+          UI_setAttribute("veto_pnl","hidden","")
+          getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
+        else UI_setAttribute("veto_pnl","hidden","re_deal") end
         UI_setAttribute("veto_pnl","active",true)
         return
       else
@@ -1347,6 +1465,7 @@ function doSpecial(pcol)
       end
     end
   end
+
   a.stage = "special"
   local desc = special.desc
   if not(desc) then desc = "Special Action" end
@@ -2132,7 +2251,7 @@ function addCaballero(player, region, color, guid)
     for _,list in pairs(rdata.caballeros) do n = n + sizeOf(list) end
     if n >= rdata.caballero_limit then debug("failed region has been limited to "..tostring(rdata.caballero_limit)); return false end
   end
-  if G.d.phase == "placement" then add()
+  if G.d.phase == "placement" or G.d.phase == "IK_extra_placement" then add()
   elseif G.d.phase == "actions" then
     local a = G.d.action
     local allowed, any_region, min, max, total, each, opp, any, either, origin = false, false, nil, nil, nil, false, false, false, false, nil
@@ -2820,6 +2939,53 @@ function playerDone(pcol)
       if #G.d.waitlist == 0 then
         G.d.status.show = false
         placeStartingCubes()
+        if G.env.intrigue_king_exp then
+          startIKExtraPlacement()
+        else
+          startBidPhase()
+        end
+      else
+        updateStatusUI(G.d.status)
+      end
+    end
+  elseif G.d.phase == "IK_extra_placement" then
+    if indexOf(G.d.waitlist,pcol) > 0 then
+      table.remove(G.d.waitlist,indexOf(G.d.waitlist,pcol))
+      for i,e in ipairs(G.d.status.waitlist) do
+        if e.player_color == pcol then e.player_status = "Set"; break end
+      end
+      pdata.disk_button = false
+      pdata.undo_button = true
+      pdata.done_button = false
+      pdata.active = false
+      pdata.done = true
+      updatePlayerBoardUI(pcol)
+      if #G.d.waitlist == 0 then
+        G.d.status.show = false
+        for _,p in ipairs(G.d.player_order) do
+          local pd = G.d.players[p]
+          local rg = C.region_guids[pd.selected_region]
+          local rd = G.obj.regions[rg]
+          if not(rd.king) then
+            local pos = Vector(C.region_start_info[rg].grande[p])
+            local offset_pos = simpleDeepCopy(pos)
+            offset_pos.z = offset_pos.z - 2
+            local o = getObjectFromGUID(pd.provinces[#pd.provinces])
+            o.setLock(false)
+            if rd.grandes[p] then
+              o.setPosition(offset_pos)
+              G.obj.snaps[o.getGUID()] = offset_pos
+            else
+              o.setPosition(pos)
+              G.obj.snaps[o.getGUID()] = pos
+            end
+            addCaballero(p, rg, p, o.getGUID())
+            table.remove(pd.provinces, #pd.provinces)
+          else
+            debug("Player "..p.." chose King region, skipping extra Caballero")
+          end
+        end
+        updateBoardUI()
         startBidPhase()
       else
         updateStatusUI(G.d.status)
@@ -3533,7 +3699,7 @@ function playerUndo(pcol)
   if env.trace then log("playerUndo() "..tostring(pcol)) end
   local function debug(msg) if true then log("playerUndo(): "..msg) end end --DEBUG enable/disable entire function logging here
   local pdata = G.d.players[pcol]
-  if G.d.phase == "placement" then
+  if G.d.phase == "placement" or G.d.phase == "IK_extra_placement" then
     if indexOf(G.d.waitlist,pcol) == 0 then table.insert(G.d.waitlist,pcol) end
     for i,e in ipairs(G.d.status.waitlist) do
       if e.player_color == pcol then e.player_status = "Deciding"; break end
@@ -4267,17 +4433,7 @@ function startScoring(regions, special, subtitle)
           else s.summary[d.player] = s.summary[d.player] + d.score end
           table.insert(s.info.scores[i],{player=d.player,points=d.score})
           if s.special then G.d.action.undo.special[tostring(Time.time).."_"..tostring(i)] = {id="score",pcol=d.player,points=d.score} end
-          local pos = getScorePos(d.player,G.d.players[d.player].score)
-          local m = getObjectFromGUID(C.score_markers[d.player])
-          m.setName(d.player.." "..tostring(G.d.players[d.player].score))
-          local scale = Vector(0.6, 0.6, 0.6)
-          if G.d.players[d.player].score > 150 then scale.y = 6; m.setDescription("+150")
-          elseif G.d.players[d.player].score > 100 then scale.y = 4; m.setDescription("+100")
-          elseif G.d.players[d.player].score > 50 then scale.y = 2; m.setDescription("+50") end
-          m.setScale(scale)
-          m.setLock(false)
-          m.setPositionSmooth(pos, false, false)
-          Wait.condition(function() m.setLock(true) end, function() return m.resting end, 5)
+          setScoringMarkerPosition(d.player)
         elseif #e > 1 then
           local s = "Players"
           for _,d in ipairs(e) do
@@ -4286,17 +4442,7 @@ function startScoring(regions, special, subtitle)
             else s.summary[d.player] = s.summary[d.player] + d.score end
             table.insert(s.info.scores[i],{player=d.player,points=d.score})
             if s.special then G.d.action.undo.special[tostring(Time.time).."_"..tostring(i)] = {id="score",pcol=d.player,points=d.score} end
-            local pos = getScorePos(d.player,G.d.players[d.player].score)
-            local m = getObjectFromGUID(C.score_markers[d.player])
-            m.setName(d.player.." "..tostring(G.d.players[d.player].score))
-            local scale = Vector(0.6, 0.6, 0.6)
-            if G.d.players[d.player].score > 150 then scale.y = 6; m.setDescription("+150")
-            elseif G.d.players[d.player].score > 100 then scale.y = 4; m.setDescription("+100")
-            elseif G.d.players[d.player].score > 50 then scale.y = 2; m.setDescription("+50") end
-            m.setScale(scale)
-            m.setLock(false)
-            m.setPositionSmooth(pos, false, false)
-            Wait.condition(function() m.setLock(true) end, function() return m.resting end, 5)
+            setScoringMarkerPosition(d.player)
           end
         end
       end
@@ -4361,16 +4507,23 @@ function startScoring(regions, special, subtitle)
       end
     end
     if s.phase == "veto_check" then -- //////////// Veto check for a special scoring //////////
-      if G.d.veto then
+      if G.d.veto_player then
         if s.restarting then
           s.restarting = false
           debug("skip veto_check setup, goto wait loop")
         else
-          s.info.veto_check = true --TODO: what is this flag for?
+          log("--- TESTING: runScoring(): veto check")
+          s.info.veto_check = true --triggers display veto message in scoring UI
           G.d.confirm_lock = true
-          UI_setAttribute("veto_msg_txt","text","Veto Special Scoring?")
+          UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
+          UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+          UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
+          if G.env.intrigue_king_exp then
+            UI_setAttribute("veto_pnl","hidden","")
+            getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
+          else UI_setAttribute("veto_pnl","hidden","re_deal") end
           UI_setAttribute("veto_pnl","active",true)
-          UI_setAttribute("scoring_veto_msg_txt","text","Waiting on Veto Player")
+          UI_setAttribute("scoring_veto_msg_txt","text","Waiting on Veto Player to decide")
         end
         while G.d.confirm_lock do coroutine.yield(0) end
         if G.d.action.vetoed then
@@ -4383,7 +4536,7 @@ function startScoring(regions, special, subtitle)
           updateUI(s.info)
         end
       else
-        s.info.veto_check = false --TODO: what does this do?
+        s.info.veto_check = false
       end
       if #s.reserves > 0 then
         s.phase = "reserves_selection"
@@ -4799,6 +4952,10 @@ function startScoring(regions, special, subtitle)
             pd.held_cards[pd.espionage] = nil
             pd.espionage = nil
           end
+          if G.d.bridge and p == G.d.bridge.player then
+            G.d.players[p].score = G.d.players[p].score + 1
+            setScoringMarkerPosition(p)
+          end
         end
         local update = false
         for _,rd in pairs(G.obj.regions) do
@@ -4855,11 +5012,27 @@ end
 
 -- //////////// User interaction handlers //////////////////
 
+--[[ Handler for I&K Veto card button click
+--]]
+function vetoCardClick(card, pcol, alt)
+  if env.trace then log("vetoCardClick() "..pcol..", "..card.getGUID()) end
+  if pcol ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players
+  if not(G.d.action.allow_veto) then log("vetoCardClick(): action veto not allowed"); return end
+  card.clearButtons()
+  G.d.confirm_lock = true
+  UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
+  UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+  UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
+  UI_setAttribute("veto_pnl","hidden","") --no redeal for I&K veto card
+  UI_setAttribute("veto_pnl","active",true)
+end
 --[[ Handler for clicking on a "Leave Face Up" card.
     Used during the action to remove one.
 --]]
 function clickFaceUpCard(card, pcol, alt)
   if env.trace then log("clickFaceUpCard() "..pcol..", "..card.getGUID()) end
+  if G.d.confirm_lock then log("clickFaceUpCard() confirm locked, ignoring"); return end
+  if G.d.action.vetoed then log("clickFaceUpCard() action vetoed, ignoring"); return end
   --validate the action
   local a = G.d.action
   if a.player ~= pcol then return end --ignore
@@ -4909,6 +5082,8 @@ end
 --]]
 function playerBoardClick(board, pcol, alt)
   if env.trace then log("playerBoardClick() "..pcol..", "..board.getGUID()) end
+  if G.d.confirm_lock then log("playerBoardClick() confirm locked, ignoring"); return end
+  if G.d.action.vetoed then log("playerBoardClick() action vetoed, ignoring"); return end
   local s = G.d.action.special
   local pdata = G.d.players[pcol]
   if s.id == "special_scoring" and s.selected then
@@ -4931,6 +5106,8 @@ end
 --TODO: add player color protection
 function regionClick(region, pcol, alt)
   if env.trace then log("regionClick() "..pcol..", "..region.getGUID()) end
+  if G.d.confirm_lock then log("regionClick() confirm locked, ignoring"); return end
+  if G.d.action.vetoed then log("regionClick() action vetoed, ignoring"); return end
   local s = G.d.action.special
   local guid = region.getGUID()
   local rdata = G.obj.regions[guid]
@@ -5115,10 +5292,13 @@ function onObjectDrop(pcol, obj)
       --TODO: should this immediately trigger the veto?  Just display dialog for now. confirm_lock should block any actions
       debug(pcol.." dropped Veto card")
       if contains(Player[pcol].getHandObjects(), obj) then debug("in hand"); return end --ignore moving in hand
-      if pcol ~= G.d.veto then obj.deal(1,G.d.veto); debug("player not veto player"); return end
+      if pcol ~= G.d.veto_player then obj.deal(1,G.d.veto); debug("player not veto player"); return end
       if G.d.phase ~= "actions" then obj.deal(1,pcol); debug("not actions phase") return end
       if not(G.d.action.allow_veto) then obj.deal(1,pcol); debug("action veto not allowed"); return end
       G.d.confirm_lock = true
+      UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
+      UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+      UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
       UI_setAttribute("veto_pnl","hidden","re_deal")
       UI_setAttribute("veto_pnl","active",true)
       return
@@ -5282,38 +5462,60 @@ end
 --]]
 function vetoClick(player, button, id)
   if env.trace then log("vetoClick() "..player.color..", "..tostring(id)) end
-  if player.color ~= G.d.veto then log("ignore non veto player"); return end --ignore other players
+  if player.color ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players
+  local ap = G.d.players[G.d.active_player]
   if id == "veto_yes" then
-    log("---TESTING: Do the veto")
-    G.d.veto = nil
-    G.d.action.vetoed = true --signal to processAction(), runScoring(), anything waiting
+    if G.env.intrigue_king_exp then
+      log("--- TODO: handle vetoClick():veto_yes for I&K exp")
+      local card = getObjectFromGUID(G.d.players[player.color].power_card)
+      assert(card, "vetoClick(): could not get I&K veto card object")
+      getObjectFromGUID(C.trash).putObject(card)
+    else
+      log("base game vetoClick():veto_yes")
+      local card = getObjectFromGUID(G.d.players[player.color].veto_card)
+      assert(card, "vetoClick(): could not get veto card object")
+      --TODO: do something with the card?
+      log("--- TODO: vetoClick():veto_yes: do something with the base game veto card")
+      G.d.players[player.color].veto_card = nil
+      G.d.veto_round = nil
+    end
+    G.d.veto_player = nil
+    G.d.action.vetoed = true --signal to processAction(), onObjectDrop(), runScoring(), etc. that action vetoed
     G.d.action.waitlist = {}
     G.d.action.waiting = 0
     G.d.confirm_lock = false --TODO: before or after processAction()??
-    G.d.players[G.d.active_player].active = true
-    G.d.players[G.d.active_player].allow_undo = false
-    G.d.players[G.d.active_player].action_ui = true
-    G.d.players[G.d.active_player].disable_reset = true
+    ap.active = true
+    ap.allow_undo = false
+    ap.action_ui = true
+    ap.disable_reset = true
     G.d.phase = "actions"
-    processAction(G.d.active_player, "finished")
-    local card = getObjectFromGUID(G.d.players[player.color].veto_card)
-    assert(card, "vetoClick(): could not get veto card object")
-    getObjectFromGUID(C.trash).putObject(card)
-    G.d.players[player.color].veto_card = nil
+    processAction(G.d.active_player, "finished") --TODO: do this automatically or just disable undo and make active player click finished?
     UI_setAttribute("veto_pnl","active",false)
+    updatePlayerBoardUI(G.d.active_player)
   elseif id == "veto_no" then
-    log("---TESTING: decline the veto")
-    if UI.getAttribute("veto_pnl", "hidden") == "re_deal" then
-      local card = getObjectFromGUID(G.d.players[player.color].veto_card)
-      assert(card, "vetoClick(): could not get veto card object to re_deal")
-      card.deal(1,player.color)
-      UI_setAttribute("veto_pnl","hidden","")
+    if G.env.intrigue_king_exp then
+      log("--- TODO: vetoClick():veto_no: handle for I&K exp")
+      --restore the button to the veto player's veto card
+      local card = getObjectFromGUID(G.d.players[player.color].power_card)
+      card.createButton(C.veto_card_button)
+    else
+      log("base game vetoClick():veto_no")
+      if UI.getAttribute("veto_pnl", "hidden") == "re_deal" then
+        local card = getObjectFromGUID(G.d.players[player.color].veto_card)
+        assert(card, "vetoClick():veto_no: could not get veto card object to re_deal")
+        card.deal(1,player.color)
+        UI_setAttribute("veto_pnl","hidden","")
+      end
     end
     UI_setAttribute("veto_pnl","active",false)
     G.d.confirm_lock = false
     G.d.veto_declined = true
-    if G.d.action.special.immediate then
-      processAction(G.d.active_player, "special")
+    if G.d.phase == "actions" then
+      if G.d.action.special.immediate then
+        processAction(ap, "special")
+      end
+    elseif G.d.phase == "scoring" then
+      log("--- TODO: vetoClick():veto_no: anything during scoring?")
     end
   else
     log("ERROR: vetoClick(): unhandled id")
@@ -5342,7 +5544,7 @@ end
 ]]
 function cardClick(card, pcol, alt)
   if env.trace then log("cardClick() "..pcol..", "..card.getGUID()) end
-  if G.d.confirm_lock then return end
+  if G.d.confirm_lock then log("cardClick() confirm locked, ignoring"); return end
   if pcol ~= G.d.active_player then return end
   if G.d.phase ~= "actions" then log("cardClick() ignore card click in non-actions phase"); return end
   if G.d.players[pcol].action_card ~= "" then log("cardClick() ignore clicks when another card is selected"); return end
@@ -5461,7 +5663,7 @@ end
 ]]
 function playerButton(player, button, id)
   if env.trace then log("playerButton() "..player.color..", "..tostring(id)) end
-  if G.d.confirm_lock then return end
+  if G.d.confirm_lock then log("playerButton() confirm locked, ignoring"); return end
   local color = Split(id,"_")[1]
   local action = Split(id,"_")[2]
   if player.color ~= color then return end
@@ -5768,6 +5970,28 @@ end
 
 --//////////////// UTILITY ////////////////////////
 
+--[[ Set a scoring marker position for a given player color. ]]
+function setScoringMarkerPosition(p)
+  if env.trace then log("setScoringMarkerPosition() "..tostring(p)) end
+  local pos = getScorePos(p,G.d.players[p].score)
+  local m = getObjectFromGUID(C.score_markers[p])
+  m.setName(p.." "..tostring(G.d.players[p].score))
+  local scale = Vector(0.6, 0.6, 0.6)
+  if G.d.players[p].score > 150 then
+    scale.y = 6; m.setDescription("+150")
+    pos.y = pos.y + 2.8
+  elseif G.d.players[p].score > 100 then
+    scale.y = 4; m.setDescription("+100")
+    pos.y = pos.y + 1.8
+  elseif G.d.players[p].score > 50 then
+    scale.y = 2; m.setDescription("+50")
+    pos.y = pos.y + 0.8
+  end
+  m.setScale(scale)
+  m.setLock(false)
+  m.setPositionSmooth(pos, false, false)
+  Wait.condition(function() m.setLock(true) end, function() return m.resting end, 5)
+end
 --[[ Handle cards entering the decks.  Intrigue and the King expansion only ]]
 function tryObjectEnterContainer(cont, obj)
   if cont.hasTag("PowerCard") then
@@ -6199,4 +6423,16 @@ function cardcheck()
       end
     end
   end
+end
+
+g_vals = {10,15,20,25,30,35,40,50,60,63,66,70,75,80,90,93,95,100,110,120,125,130,135,140,145,150,155,160,170,180,0}
+function setDeckValues(g)
+  local d = getObjectFromGUID(g)
+  assert(d, "Unable to get deck object for guid "..tostring(g))
+  local data = d.getData()
+  assert(#data.ContainedObjects == #g_vals, "Deck size does not match #g_vals")
+  for i,e in ipairs(data.ContainedObjects) do e.Value = g_vals[i] end
+  local pos = d.getPosition()
+  pos.x = pos.x - 4
+  spawnObjectData({data=data,position=pos})
 end

@@ -153,6 +153,7 @@ power_cards = {
   [10] = { name="Intrigue",description="Execute the Intrigue action",
     prov=6, special={id="IK_intrigue", desc="Intrigue action"},
   },
+  [13] = { name="Moving Day", description="TODO"}, --TODO
   [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
     prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"},
   },
@@ -171,9 +172,11 @@ power_cards = {
   [40] = {name="Veto",description="", --TODO:WIP  Lots to test here!
     prov=4, special={id="veto"},
   },
+  [43] = { name="Cival War", description="TODO"}, --TODO
   [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
+  [53] = { name="Alliance", description="TODO (Hard, lots of impact on scoring code)"}, --TODO
   [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions",
     prov=4, special={id="special_scoring",immediate=true,region_score={6,7},desc="Special Scoring: 6 & 7 regions"},
   },
@@ -186,6 +189,7 @@ power_cards = {
   [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
+  [73] = { name="Revolution", description="TODO"}, --TODO
   [75] = { name="Reserves", description="One cube from Provinces on card, place before any scoring", --TODO:WIP  --TODO: test with remove_face_up
     prov=3, special={id="reserves", leave_face_up=true, hold_card=true, immediate=true, desc="TODO: reserves"},
   },
@@ -207,6 +211,7 @@ power_cards = {
   [110] = { name="Special Scoring",description="Score the Castillo",
     prov=2, special={id="special_scoring", immediate=true, castillo=true, desc="Special Scoring: Castillo"},
   },
+  [113] = { name="Whirlwind (Hurricane)", description="TODO kinda hard, stuff to do after bidding but before starting actions"}, --TODO
   [120] = { name="Special Scoring",description="Score all the\n'5' Regions",
     prov=2, special={id="special_scoring",immediate=true,region_score=5,desc="Special Scoring: 5 regions"},
   },
@@ -216,7 +221,7 @@ power_cards = {
   [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring",
     prov=2, special={id="region_score_double", disk=true, players="active", desc="Choose a region",},
   },
-  [135] = { name="Special Scoring", description="Score one region where you have 2 Caballeros but not the majority",
+  [135] = { name="Special Scoring", description="Score one region where you have 2 Caballeros but not the majority",  --TODO: test
     prov=2, special={id="special_scoring", no_maj=true, disk=true, players="active", count=2, desc="Choose a region"},
   },
   [140] = { name="Castillo", description="Send 2 Caballeros each\nto Castillo. Yours from Court",
@@ -228,7 +233,8 @@ power_cards = {
   [150] = { name="Special Scoring", description="Active Player\nScore a Secret Region",
     prov=1, special={id="special_scoring",secret=true,players="active",desc="Active Player\nSelect a region",},
   },
-  [155] = { name="Special Scoring", description="Select 3 regions then\nopp chooses scoring",
+  [153] = { name="The Queen (Mistress)", description="TODO"}, --TODO
+  [155] = { name="Special Scoring", description="Select 3 regions then\nopp chooses scoring", --BUG: remove button on opp when selected, also set UI status for opponent deciding
     prov=1, special={id="special_scoring", selected=3, desc="TODO description"},
   },
   [160] = {name="Royal Advisor",description="Move the King to\nan adjacent Region",
@@ -237,15 +243,15 @@ power_cards = {
   [170] = { name="Special Scoring",description="Score region(s) selected\nby > 1 player",
     prov=0, special={id="special_scoring",secret=true, disk=true, players="all", dupes=true, desc="All select a region\nScore only duplicates!"}, --TODO: test
   },
-  [180] = { name="King",description="Execute the King action",
+  [180] = { name="The King",description="Execute the King action",
     prov=0, special={id="IK_king",desc="King action"},
   },
   [0] = { name="Joker", description="Choose your Power Card last",
     prov=0, special={id="joker"}, desc="TODO: Joker"},
 }
-IK_king = { name="King card",description="Move the King\nto any Region",
+IK_king = { name="The King",description="Move the King\nto any Region",
   special={id="king",IK="IK_king",dest="any_region",desc="Move the King"},
 }
-IK_intrigue = { name="Intrigue card",description="Move 1 opp Caballero\nor all of yours",
+IK_intrigue = { name="Intrigue",description="Move 1 opp Caballero\nor all of yours",
   special={id="move_either_caballero",IK="IK_intrigue",single_origin=true,dest="any_region",desc="TODO"},
 }
