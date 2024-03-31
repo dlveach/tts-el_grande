@@ -1,0 +1,33 @@
+DEBUG = true
+ACTIVE = false
+
+function onLoad(save_state)
+  if DEBUG then log("Alliance:onLoad()") end
+end
+
+function setActive(state)
+  if DEBUG then log("Alliance:setActive() "..tostring(state)) end
+  ACTIVE = state or false
+  self.setLock(not(ACTIVE))
+end
+
+--TODO: should the onDrop code just be in Global onObjectDrop() & check for "Bridge" tag?
+function onDrop(pcol)
+  function debug(msg) if DEBUG then log("Alliance:onDrop() "..msg) end end
+  debug("Player "..pcol.." dropped the Alliance")
+  if ACTIVE then
+    local regions = {}
+    local pos = self.getPosition();pos.y = 0
+    self.setRotation({0,180,0})
+    local hits = Physics.cast({origin=pos, direction={0,1,0,}, max_distance=2, size={2,1,1,}, type=3, debug=DEBUG,})
+    local str = ""
+    for _,hit in ipairs(hits) do
+      if hit.hit_object.hasTag("Region") then
+        table.insert(regions, hit.hit_object.getGUID())
+        str = str.." "..hit.hit_object.getGUID()
+      end
+    end
+    debug("Alliance:onDrop(): Regions:"..str)
+    Global.call("setAlliance",{marker=self.getGUID(),regions=regions,pcol=pcol})
+  end
+end

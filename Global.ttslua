@@ -5,9 +5,10 @@
 
   -MVP TODO items remaining:
 
-  -TODO: maybe implement "missing" cards from player's edition.   Some anyway.
-          Cool:  13, 43, 53 (cool but very hard), 73, 113(maybe, kinda hard), 153
-          Not gonna do: 23, 83,
+  -BUG: Yellow cards are hard to read, numbers need black border or something
+  -TODO: implement "missing" cards from player's edition.
+          Cool:  13, 43, 53, 73, 113(maybe, kinda hard), 153
+  -TODO: check on undo for Bridge (63).  Don't think I did one.
 
   -Ongoing stuff
   -TODO: base game: disable Done/Undo buttons during action (when Finished/Reset are showing).  Only show during action:stage == 'main'
@@ -114,6 +115,9 @@ function onLoad(saved_data)
     G.obj.snaps = {}
     G.obj.snaps[C.king] = getObjectFromGUID(C.king).getPosition()
     G.obj.snaps[C.bridge] = getObjectFromGUID(C.bridge).getPosition()
+    for g,_ in pairs(C.alliance_markers) do
+      G.obj.snaps[g] = getObjectFromGUID(g).getPosition()
+    end
     for g,_ in pairs(C.mobile_score_boards) do G.obj.snaps[g] = getObjectFromGUID(g).getPosition() end
     G.obj.bid_buttons = simpleDeepCopy(C.order_buttons)
     for _,e in pairs(G.obj.bid_buttons) do --TODO template like I did with regions
@@ -243,6 +247,12 @@ function restoreGame()
       else
         log("WARN: restoreGame() unable to locate I&K bridge object")
         G.d.IK_bridge = nil
+      end
+    end
+    if G.d.IK_alliance and G.d.IK_alliance.active then
+      for g,r in pairs(G.d.IK_alliance.regions) do
+        getObjectFromGUID(g).call("setActive",true)
+        getObjectFromGUID(r).highlightOn(Color["Yellow"])
       end
     end
   end
@@ -428,7 +438,9 @@ function setupGame(player, button, id)
     -- Table for "Face Up Cards" that may be played.  Save information needed to "remove" them later if #125 is played.
     G.d.IK_face_up_cards = {}
   else
+    getObjectFromGUID(C.IK.rules).destruct()
     getObjectFromGUID(C.bridge).destruct()
+    getObjectFromGUID(C.alliance).destruct()
     getObjectFromGUID(C.IK.setup_deck).destruct()
     getObjectFromGUID(C.IK.setup_card).destruct()
     getObjectFromGUID(C.table_extension).destruct()
@@ -1287,7 +1299,7 @@ function processAction(pcol, opt)
         if pdata.allow_undo then a.undo.main["special"]={id="special_completed"}
         else a.undo.special = {} end
       end
-      --dlear any opponents state
+      --clear any opponents state
       for p,pd in pairs(G.d.players) do
         if p ~= a.player then
           pd.undo_button = false
@@ -1300,6 +1312,11 @@ function processAction(pcol, opt)
           pd.done = false
           updatePlayerBoardUI(p)
         end
+      end
+      --clear any region state
+      for g,rd in pairs(G.obj.regions) do
+        getObjectFromGUID(g).highlightOff()
+        --TODO: anything else?
       end
     else
       log("ERROR: incorrect stage for finished: "..tostring(a.stage)); return   --DEBUG
@@ -1323,14 +1340,23 @@ function processAction(pcol, opt)
       pdata.show_disk = false
       pdata.show_stage = false
       pendingCubes("clear")
-      for g,_ in pairs(G.obj.regions) do
-        local o = getObjectFromGUID(g); o.highlightOff(); o.clearButtons()
-      end
       for p,pd in pairs(G.d.players) do
         local o = getObjectFromGUID(C.player_boards[p]); o.clearButtons(); o.highlightOff()
       end
+      for g,_ in pairs(G.obj.regions) do
+        local o = getObjectFromGUID(g); o.highlightOff(); o.clearButtons()
+      end
       log("--- TODO: processAction():finished: anything else for forced action finish on a Veto?")
     end
+    --handle some special cases
+    if G.d.IK_alliance.active then
+      for m,r in pairs(G.d.IK_alliance.regions) do
+        marker = getObjectFromGUID(m); marker.call("setActive",false)
+        getObjectFromGUID(r).highlightOff()
+      end
+      G.d.IK_alliance.active = false
+    end
+    --reset player stuffs
     if pdata.allow_undo then pdata.undo_button = true else pdata.undo_button = false end
     pdata.done_button = true
     setLockCourt(pcol, true)
@@ -1340,8 +1366,7 @@ function processAction(pcol, opt)
     updateCastilloUI()
     a.waiting = 0
     a.status.waitlist = {}
-    -- updateStatusUI(a.status)
-    updateStatusUI(G.d.status) --TODO: TESTING: return status back to G.d.status (beginning of turn?)  See also reset.
+    updateStatusUI(G.d.status)
   elseif opt == "reset" then
     if a.stage == "waiting" then --TODO: clean up this mess! move stuff to an undo.special entries TODO: conflict with undo I&K sequencing?
       log("processAction(): reset special while waiting")
@@ -1465,7 +1490,6 @@ function doSpecial(pcol)
       end
     end
   end
-
   a.stage = "special"
   local desc = special.desc
   if not(desc) then desc = "Special Action" end
@@ -1988,6 +2012,24 @@ function doSpecial(pcol)
     G.d.bridge.active = true
     a.status.waitlist = {}
     a.status.info = a.name..":\n"..a.description
+    updateStatusUI(a.status)
+    pdata.done_button = false
+    pdata.undo_button = false
+    G.d.action.disallow_finished = true
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "alliance" then
+    log("Place the Alliance marker(s) action")
+    for g,_ in pairs(C.alliance_markers) do getObjectFromGUID(g).call("setActive",true) end
+    if G.d.IK_alliance and sizeOf(G.d.IK_alliance.regions) > 0 then
+      for g,r in pairs(G.d.IK_alliance.regions) do getObjectFromGUID(r).highlightOn(Color["Yellow"]) end
+    else
+      G.d.IK_alliance = {regions={},}
+    end
+    G.d.IK_alliance.active = true
+    a.undo.special["alliance"] = nil --should not be one, but clear just in case
+    a.status.waitlist = {}
+    a.status.info = a.name..":\n"..a.description
+    a.allow_veto = true
     updateStatusUI(a.status)
     pdata.done_button = false
     pdata.undo_button = false
@@ -4204,7 +4246,7 @@ function undo(u)
   elseif u.id == "relocate" then --TODO: anything?
     log("undo relocate action")
     --TODO anything here?
-  elseif u.id == "reserves" then --TODO
+  elseif u.id == "reserves" then --TODO: test
     log("undo reserves action")
     local card = getObjectFromGUID(u.card)
     local pd = G.d.players[u.pcol]
@@ -4218,6 +4260,23 @@ function undo(u)
     Wait.condition(function() card.setLock(true) end, function() return card.resting end, 5)
     table.insert(G.d.players[u.pcol].power_cards,card.getGUID())
     pd.held_cards[card.getGUID()] = nil
+  elseif u.id == "bridge" then --TODO:
+    log("--- TODO: undo bridge action")
+
+  elseif u.id == "alliance" then --TODO: refactor for two markers
+    log("--- TODO: undo alliance action")
+    for g,pos in pairs(u.snaps) do
+      local o = getObjectFromGUID(g)
+      o.setLock(false)
+      o.setPosition(pos)
+      G.obj.snaps[o.getGUID()] = pos
+      Wait.condition(function() o.setLock(true) end,function() return o.resting end,5)
+      getObjectFromGUID(G.d.IK_alliance.regions[g]).highlightOff()
+    end
+    if u.old then
+      G.d.IK_alliance = simpleDeepCopy(u.old)
+      G.d.IK_alliance.active = false
+    else G.d.IK_alliance = nil end
   else
     log("ERROR: undo() unknown id")
   end
@@ -4294,6 +4353,13 @@ function startScoring(regions, special, subtitle)
           rd.quarantine = nil
           object_UI_setAttribute(r,"quarantined","active",false)
           object_UI_setAttribute(r,"label","active",false)
+        end
+      end
+      if G.d.IK_alliance then  --handle special case for alliance
+        s.alliance = true
+        for _,rg in pairs(G.d.IK_alliance.regions) do
+          local i = indexOf(C.region_guids,rg)
+          table.remove(s.regions,indexOf(s.regions,i))
         end
       end
     end
@@ -4863,6 +4929,51 @@ function startScoring(regions, special, subtitle)
       end
     end
     if s.phase == "score_regions" then  -- //////////// sequentially score regions in the list ////////////
+      log("score_regions: s.alliance = "..tostring(s.alliance))
+      if s.alliance then
+        --special case for Alliance between two regions
+        if s.restarting then
+          s.restarting = false
+          debug("skip alliance scoring, goto pause")
+        else
+          debug("score the alliance")
+          s.info.msg = "Score the Alliance"
+          s.info.region = "Alliance"
+          s.info.scores = {{},{},{},}
+          s.info.summary = true
+          s.info.show = true
+          updateUI(s.info)
+          --initialize the combined virtual region used in scoring
+          local vr = {
+            name="Alliance",
+            scoring = {0,0,0},
+            king = false,
+            grandes={Blue=false,Red=false,Green=false,Purple=false,Yellow=false},
+            caballeros={Blue={},Red={},Green={},Purple={},Yellow={},},
+          }
+          for _,rg in pairs(G.d.IK_alliance.regions) do
+            getObjectFromGUID(rg).highlightOn(Color["Yellow"])
+            local rd = G.obj.regions[rg]
+            if rd.king then vr.king = true end
+            if rd.double_scoring then vr.double_scoring = true end
+            for p,grande in pairs(rd.grandes) do
+              if grande then vr.grandes[p] = true end
+            end
+            for p,list in pairs(rd.caballeros) do
+              for g,_ in pairs(list) do vr.caballeros[p][g] = true end
+            end
+            for i,val in ipairs(rd.scoring) do vr.scoring[i] = vr.scoring[i] + val end
+          end
+          log("Virtual Region");log(vr)
+          G.d.IK_alliance.virtual_region = vr
+          local scores = scoreRegion("alliance")
+          if #scores > 0 then process(scores) end
+          updateUI(s.info)
+          s.alliance = false
+        end
+        pause(2)
+        for _,r in pairs(G.d.IK_alliance.regions) do getObjectFromGUID(r).highlightOff() end
+      end
       for _,i in ipairs(s.regions) do
         if contains(s.regions_completed,i) then
           debug("region "..tostring(i).." already scored, skipping")
@@ -4872,7 +4983,7 @@ function startScoring(regions, special, subtitle)
             marker.setPositionSmooth(C.round_scoring_positions[3+i],false,false)
             Wait.condition(function() marker.setLock(true) end, function() return marker.resting end, 5)
           end
-          getObjectFromGUID(C.region_guids[i]).highlightOn("Yellow")
+          getObjectFromGUID(C.region_guids[i]).highlightOn(Color["Yellow"])
           local scores = scoreRegion(C.region_guids[i])
           s.info.msg = "Score region "..tostring(i)..": "..G.obj.regions[C.region_guids[i]].name
           s.info.region = G.obj.regions[C.region_guids[i]].name
@@ -4945,6 +5056,15 @@ function startScoring(regions, special, subtitle)
         end
       else
         --clear any region/player/modifier flags for general scoring, trash relevant cards, etc.
+        if G.d.IK_alliance then
+          G.d.IK_alliance = nil
+          for g,md in pairs(C.alliance_markers) do
+            local o = getObjectFromGUID(g)
+            o.setLock(false)
+            o.setPosition(md.home)
+            Wait.condition(function() o.setLock(true) end,function() return o.resting end,5)
+          end
+        end
         for p,pd in pairs(G.d.players) do
           if pd.espionage then
             local trash = getObjectFromGUID(C.trash)
@@ -5230,9 +5350,9 @@ end
 function onObjectDrop(pcol, obj)
   if env.ignore_drop then return end --DEVELOPMENT
   if G.d.phase == "" then return end --game not started
-  if obj.hasTag("Bridge") then
+  if obj.hasTag("Bridge") or obj.hasTag("Alliance") then
     if G.d.action.vetoed then snapBack(obj.getGUID()); return end
-    return --ignore the bridge (handled by itself) TODO: move it's onDrop() code here?
+    return --ignore the bridge/alliance objects (handled by itself) TODO: move it's onDrop() code here?
   end
   local function debug(msg) if true then log("DEBUG onObjectDrop(): "..msg) end end --DEBUG
   --Handle moving cards around
@@ -5728,6 +5848,8 @@ function bidButton(player, button, id)
 end
 --[[ EXTERNAL Call fn, set the I&K bridge regions when dropped.
 --]]
+--TODO: Need an action undo here!!!  see setAlliance()
+--TODO: handle move from existing position, snap back etc. see setAlliance()
 function setBridge(params)
   if env.trace then log("setBridge():");log(params) end
   local regions,pcol = params.regions,params.pcol
@@ -5745,6 +5867,61 @@ function setBridge(params)
   updatePlayerBoardUI(pcol)
   return true
 end
+--[[ EXTERNAL Call fn, set the I&K Alliance regions when dropped.
+--]]
+function setAlliance(params)
+  if env.trace then log("setAlliance():");log(params) end
+  local regions,pcol,marker = params.regions,params.pcol,params.marker
+  assert(regions,"setAlliance() missing regions parameter")
+  assert(pcol,"setAlliance() missing pcol parameter")
+  assert(marker,"setAlliance() missing marker guid")
+  --Sanity checks
+  if #regions ~= 1 then --wrong number regions
+    log("setAlliance() wrong number of regions")
+    snapBack(marker)
+    return
+  end
+  local rd = G.obj.regions[regions[1]]
+  if rd.king or rd.quarantine or rd.protected then --target region taboo
+    log("setAlliance() target region "..regions[1].." is taboo")
+    snapBack(marker)
+    return
+  end
+  if G.d.IK_alliance.regions[marker] then --check for old alliance region taboo
+    local rd = G.obj.regions[G.d.IK_alliance.regions[marker]]
+    if rd.king or rd.quarantine or rd.protected then
+      log("setAlliance() region "..G.d.IK_alliance.regions[marker].." in old alliance is taboo")
+      snapBack(marker)
+      return
+    end
+  end
+  --create action undo entry if not defined
+  if not(G.d.action.undo.special["alliance"]) then
+    local old = nil
+    if sizeOf(G.d.IK_alliance.regions) > 0 then old = simpleDeepCopy(G.d.IK_alliance) end
+    G.d.action.undo.special["alliance"] = {id="alliance", old=old, snaps={},}
+  end
+  if not(G.d.action.undo.special["alliance"].snaps[marker]) then
+    G.d.action.undo.special["alliance"].snaps[marker] = G.obj.snaps[marker]
+  end
+  --process the placement
+  local region = regions[1]
+  if G.d.IK_alliance.regions[marker] then
+    if G.d.IK_alliance.regions[marker] == region then --moving within the region placed this action
+      Wait.condition(function() G.obj.snaps[marker] = getObjectFromGUID(marker).getPosition() end,function() return getObjectFromGUID(marker).resting end,5)
+      return
+    end
+    getObjectFromGUID(G.d.IK_alliance.regions[marker]).highlightOff()
+  end
+  G.d.IK_alliance.regions[marker] = region
+  Wait.condition(function() G.obj.snaps[marker] = getObjectFromGUID(marker).getPosition() end,function() return getObjectFromGUID(marker).resting end,5)
+  getObjectFromGUID(region).highlightOn(Color["Yellow"])
+  G.d.action.allow_veto = false
+  G.d.IK_alliance.player = pcol
+  if sizeOf(G.d.IK_alliance.regions) == 2 then G.d.action.disallow_finished = false end
+  updatePlayerBoardUI(pcol)
+end
+
 -- //////////////// UI Updaters ///////////////////
 
 --[[ Update Global status UI
@@ -5780,6 +5957,9 @@ function updateBoardUI()
     local rd = G.obj.regions[C.region_guids[r]]
     local s = tostring(info.scoring[1]).." / "..tostring(info.scoring[2]).." / "..tostring(info.scoring[3])
     if rd.double_scoring then s = "(2X) "..s end
+    if G.d.alliance and G.d.alliance.regions and contains(G.d.alliance.regions,g) then
+      log("--- TODO: updateBoardUI(): highlight Alliance for region "..tostring(g))
+    end
     object_UI_setAttribute(board,"R"..tostring(r).."_S_txt","text",s)
     if info.king or info.protected then
       object_UI_setClass(board,"R"..tostring(r).."_H_pnl","Light Base")
@@ -6257,6 +6437,8 @@ function scoreRegion(region_guid)
   local region = nil
   if region_guid == "castillo" then
     region = G.obj.castillo
+  elseif region_guid == "alliance" then
+    region = G.d.IK_alliance.virtual_region
   else
     region=G.obj.regions[region_guid]
   end

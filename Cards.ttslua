@@ -153,7 +153,7 @@ power_cards = {
   [10] = { name="Intrigue",description="Execute the Intrigue action",
     prov=6, special={id="IK_intrigue", desc="Intrigue action"},
   },
-  [13] = { name="Moving Day", description="TODO"}, --TODO
+  [13] = { name="Moving Day (Field Day)", description="TODO"}, --TODO
   [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
     prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"},
   },
@@ -176,7 +176,9 @@ power_cards = {
   [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
-  [53] = { name="Alliance", description="TODO (Hard, lots of impact on scoring code)"}, --TODO
+  [53] = { name="Alliance", description="Place Alliance marker\nbetween two regions\nwill be scored as one",   --TODO:WIP
+    prov=4, special={id="alliance", desc="Place Alliance marker"},
+  },
   [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions",
     prov=4, special={id="special_scoring",immediate=true,region_score={6,7},desc="Special Scoring: 6 & 7 regions"},
   },

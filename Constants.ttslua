@@ -9,11 +9,11 @@ C.player_boards={Blue="01cf4f",Red="40aa3a",Green="5688f0",Purple="7289a1",Yello
 C.trash="595833"
 C.table_extension="fd81d6"
 C.mobile_score_boards={
-  ["c8ccec"]={scoring={8,4,0}, home_pos={50.12, 1.01, -8.92}, image="MSB840",
+  ["c8ccec"]={scoring={8,4,0}, home_pos={50.30, 0.96, 2.44}, image="MSB840",
     image_3p = "MSB840_3p", url_3p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501857/B8ABEEF122795038E08CD652B7B2C8B2FC85ACA0/",
     image_2p = "MSB840_2p", url_2p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501820/706E6B46A4D6F7A99F5F34A7CB1D2480B19A73C0/",
   },
-  ["2ce66c"]={scoring={4,0,0}, home_pos={50.13, 1.01, -12.71}, image="MSB400",
+  ["2ce66c"]={scoring={4,0,0}, home_pos={50.30, 0.96, -0.15}, image="MSB400",
     image_3p = "MSB400_3p", url_3p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501738/DB1BA2B640A7EEAAC0C845011650E2F1BC00E092/",
     image_2p = "MSB400_2p", url_2p = "http://cloud-3.steamusercontent.com/ugc/5982539699949501785/C98F396398C9003A70EDA4922ABF826336E6AFEF/",
   },
@@ -282,9 +282,18 @@ C.delta_Z=-2.86
 C.delta_X=-2.83
 --[[ Intrique and the King expansion stuffs ]]
 C.bridge = "51e247"
-C.bridge_home_pos = {49.86, 1.46, -18.50}
+C.bridge_home_pos = {49.86, 1.46, -3.47}
+C.alliance_markers = {
+  ["23df30"] = {home={49.85, 0.96, -6.50}},
+  ["537d14"] = {home={49.84, 0.96, -8.90}},
+}
+-- C.alliance = "23df30"
+-- C.alliance_home_pos = {49.85, 0.96, -6.50}
+--alliance #2 home pos {49.84, 0.96, -8.90}
+
 -- scale in play: 1.6, scale returned: 1.87
 C.IK = {
+  rules = "f89bc4",
   setup_card="eab5b7",
   setup_deck = "404f97",
   setup_caballero_cards={[2]={4,2},[3]={5,3,1},[4]={5,4,2,1},[5]={5,4,3,2,1}},
@@ -294,7 +303,7 @@ C.IK = {
   intrigue_home_pos={40, 1, -19.84},
   caballero_cards={"8afed5","53c14e","8df350","dd8857","083d68",},
   caballero_home_pos={{40, 1, -12.65},{40, 1, -5.86},{40, 1, 1.03},{40, 1, 7.92},{40, 1, 14.87},},
-  decks={Blue="5fa1fc",Red="108418",Green="8b1932",Purple="1f1776",Yellow="1d8d38",},
+  decks={Blue="4dfa46",Red="30269d",Green="c42a10",Purple="5e3cfd",Yellow="4dc284",},
   caballero_pos_l = {{ 1.141, -0.12, 1.631 }, { 0.369, -0.12, 1.631 },},
   card_pos_l = {{ -0.32, -0.12, 1.54 }, { -1.05, -0.12, 1.54 }, { -0.55, -0.12, 1.9 }, { -1.25, -0.12, 1.9 }},
 }
