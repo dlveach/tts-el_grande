@@ -153,7 +153,9 @@ power_cards = {
   [10] = { name="Intrigue",description="Execute the Intrigue action",
     prov=6, special={id="IK_intrigue", desc="Intrigue action"},
   },
-  [13] = { name="Moving Day (Field Day)", description="TODO"}, --TODO
+  [13] = { name="Moving Day (Field Day)", description="All opponents move their Grande",
+    prov=4, special={id="moving_day",disk=true,desc="Opponents decide"},
+  },
   [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
     prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"},
   },
@@ -172,11 +174,13 @@ power_cards = {
   [40] = {name="Veto",description="", --TODO:WIP  Lots to test here!
     prov=4, special={id="veto"},
   },
-  [43] = { name="Cival War", description="TODO"}, --TODO
+  [43] = { name="Cival War", description="Remove all opp Caballeros from one region & pay 1 Caballero from Court",  --TODO:WIP
+    prov=4, special={id="civil_war"}
+  },
   [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
-  [53] = { name="Alliance", description="Place Alliance marker\nbetween two regions\nwill be scored as one",   --TODO:WIP
+  [53] = { name="Alliance", description="Place Alliance marker\nbetween two regions\nwill be scored as one",
     prov=4, special={id="alliance", desc="Place Alliance marker"},
   },
   [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions",
@@ -191,7 +195,9 @@ power_cards = {
   [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
-  [73] = { name="Revolution", description="TODO"}, --TODO
+  [73] = { name="Revolution", description="Reverse one mobile scoreboard in play",  --TODO
+    prov=3, special={id="revolution", desc="Select a scoreboard",},
+  },
   [75] = { name="Reserves", description="One cube from Provinces on card, place before any scoring", --TODO:WIP  --TODO: test with remove_face_up
     prov=3, special={id="reserves", leave_face_up=true, hold_card=true, immediate=true, desc="TODO: reserves"},
   },
@@ -213,7 +219,9 @@ power_cards = {
   [110] = { name="Special Scoring",description="Score the Castillo",
     prov=2, special={id="special_scoring", immediate=true, castillo=true, desc="Special Scoring: Castillo"},
   },
-  [113] = { name="Whirlwind (Hurricane)", description="TODO kinda hard, stuff to do after bidding but before starting actions"}, --TODO
+  [113] = { name="Whirlwind (Hurricane)", description="Select after bidding. Remove 1/2 opp Caballeros start of turn", --TODO sel reg -> bidding, immediate at start of turn
+    prov=3, special={id="whirlwind", immediate=true, desc="no special"},
+  },
   [120] = { name="Special Scoring",description="Score all the\n'5' Regions",
     prov=2, special={id="special_scoring",immediate=true,region_score=5,desc="Special Scoring: 5 regions"},
   },
@@ -235,7 +243,9 @@ power_cards = {
   [150] = { name="Special Scoring", description="Active Player\nScore a Secret Region",
     prov=1, special={id="special_scoring",secret=true,players="active",desc="Active Player\nSelect a region",},
   },
-  [153] = { name="The Queen (Mistress)", description="TODO"}, --TODO
+  [153] = { name="The Queen (Mistress)", description="King is distracted this round, no King bonus",
+    prov=1, special={id="queen", immediate=true, desc="The Queen"},
+  },
   [155] = { name="Special Scoring", description="Select 3 regions then\nopp chooses scoring", --BUG: remove button on opp when selected, also set UI status for opponent deciding
     prov=1, special={id="special_scoring", selected=3, desc="TODO description"},
   },

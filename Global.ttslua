@@ -5,12 +5,17 @@
 
   -MVP TODO items remaining:
 
-  -BUG: Yellow cards are hard to read, numbers need black border or something
-  -TODO: implement "missing" cards from player's edition.
-          Cool:  13, 43, 53, 73, 113(maybe, kinda hard), 153
-  -TODO: check on undo for Bridge (63).  Don't think I did one.
+  -BUG: (I&K) Done button should warn if Caballero action not used after finishing Special Action.
+  -BUG: (FIXED? TESSTING) Done button should show at start of player turn
+  -BUG: (I&K) Yellow cards are hard to read, numbers need black border or something
+  -BUG: (I&K) no undo for Bridge (63).  Don't think I did one.
+  -TODO: (I&K) implement "missing" cards from player's edition. 73, 113
+              Done: 153, 13, 43
 
   -Ongoing stuff
+  -TODO: really need to refactor design for 'Done' button (and maybe 'Undo' as well to match).
+        overloaded used between action, disk selection and cube placement causes very ugly complex
+        conditional code in the button handler.  Maybe separate buttons (or button onClick functions set in UI).
   -TODO: base game: disable Done/Undo buttons during action (when Finished/Reset are showing).  Only show during action:stage == 'main'
   -BUG: base game: king card didn't flip face up at start of bidding phase (king card was held by last player before bid phase)
         WORKAROUND: just unlock and flip it manually.
@@ -863,6 +868,7 @@ function startBidPhase()
       object_UI_setAttribute(r,"protected","active",false)
     end
   end
+  if G.d.queen then G.d.queen = nil end --see I&K card #153
 end
 --[[ Return action data to initial state
 --]]
@@ -1144,7 +1150,7 @@ function startPlayerActions(pcol)
   pdata.active = true
   pdata.waiting = false
   pdata.allow_undo = true
-  pdata.done_button = false
+  pdata.done_button = true
   pdata.action_ui = true
   updatePlayerBoardUI(pcol)
 end
@@ -1349,7 +1355,7 @@ function processAction(pcol, opt)
       log("--- TODO: processAction():finished: anything else for forced action finish on a Veto?")
     end
     --handle some special cases
-    if G.d.IK_alliance.active then
+    if G.d.IK_alliance and G.d.IK_alliance.active then
       for m,r in pairs(G.d.IK_alliance.regions) do
         marker = getObjectFromGUID(m); marker.call("setActive",false)
         getObjectFromGUID(r).highlightOff()
@@ -1844,6 +1850,7 @@ function doSpecial(pcol)
     pdata.done_button = true
     pdata.action_ui = true
     updatePlayerBoardUI(pcol)
+    a.undo.special["queen"] = {id="queen"}
   elseif special.id == "restore_bid" then
     log("special action: restore_bid")
     a.stage = "waiting"
@@ -2252,6 +2259,118 @@ function doSpecial(pcol)
     pdata.done_button = true
     pdata.action_ui = true
     updatePlayerBoardUI(pcol)
+  elseif special.id == "moving_day" then
+    log("setup Moving Day action")
+    a.stage = "waiting"
+    a.status = {waitlist={},}
+    a.status.info = a.name.."\n".."Opponents: Select a new region for Grande"
+    a.waitlist = simpleDeepCopy(a.opponents)
+    local remove = {}
+    for _,p in ipairs(a.waitlist) do
+      local pd = G.d.players[p]
+      pd.allowed_regions = {1,2,3,4,5,6,7,8,9,}
+      for i=1,9 do
+        if G.obj.regions[C.region_guids[i]].king then
+          if G.obj.regions[C.region_guids[i]].grandes[p] then
+            table.insert(remove,p)
+            break
+          else
+            table.remove(pd.allowed_regions,indexOf(pd.allowed_regions,i))
+          end
+        end
+        if G.obj.regions[C.region_guids[i]].grandes[p] then table.remove(pd.allowed_regions,indexOf(pd.allowed_regions,i)) end
+      end
+      if not(contains(remove,p)) then
+        pd.selected_region = pd.allowed_regions[math.random(1,#pd.allowed_regions)]
+        table.insert(a.status.waitlist,{player_color=p,player_status="Deciding"})
+        pd.active = true
+        pd.waiting = true
+        pd.show_disk = true
+        pd.disk_button = true
+        pd.undo_button = false
+        pd.done_button = true
+        pd.action_ui = false
+        updatePlayerBoardUI(p)
+      end
+    end
+    for _,p in pairs(remove) do table.remove(a.waitlist,indexOf(a.waitlist,p)) end
+    if #a.waitlist > 0 then
+      a.allow_veto = true
+      a.status.show = true
+      updateStatusUI(a.status)
+      a.waiting = #a.waitlist
+      pdata.done_button = false
+      pdata.undo_button = false
+      a.disallow_finished = true
+      pdata.disable_reset = false
+    else
+      --auto finish action, no opp elegible to move Grande
+      log("WARN: doSpecial():moving_day: no opponents have Grande elegible to move")
+      a.status.info = "No Opp met requirements"
+      a.status.waitlist = {}
+      a.status.show = true
+      updateStatusUI(a.status)
+      a.stage_status = "No opp met req"
+      a.stage = "special"
+      pdata.done_button = false
+      pdata.undo_button = false
+      a.disallow_finished = false
+      pdata.disable_reset = false
+    end
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "queen" then
+    log("immediate action: the queen action")
+    a.court_any_region = true
+    G.d.queen = true
+    a.special_completed = true
+    a.stage_status = "Special completed"
+    a.stage = "special"
+    pdata.disable_reset = false
+    pdata.allow_undo = true
+    pdata.undo_button = true
+    pdata.done_button = true
+    pdata.action_ui = true
+    updatePlayerBoardUI(pcol)
+  elseif special.id == "civil_war" then
+    log("set up civil war region selection")
+    if #pdata.court > 0 then
+      a.stage = "waiting"
+      a.status.waitlist={}
+      a.status.info = a.name.."\n"..a.description
+      table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
+      updateStatusUI(a.status)
+      pdata.allowed_regions = {}
+      for i,g in ipairs(C.region_guids) do
+        if not(G.obj.regions[g].king or G.obj.regions[g].quarantine or G.obj.regions[g].protected) then
+          table.insert(pdata.allowed_regions,i)
+        end
+      end
+      pdata.selected_region = pdata.allowed_regions[math.random(1,#pdata.allowed_regions)]
+      pdata.active = true
+      pdata.waiting = true
+      pdata.show_disk = true
+      pdata.disk_button = true
+      pdata.show_stage = false
+      pdata.undo_button = false
+      pdata.done_button = true
+      pdata.action_ui = false
+      updatePlayerBoardUI(pcol)
+      a.waitlist = {pcol}
+      a.waiting = 1
+      special.disk = true
+    else
+      log("WARN: doSpecial():civil_war: player has no court to pay")
+      a.status.info = "Court is empty! Cannot pay 1 Caballero"
+      a.status.waitlist = {}
+      a.status.show = true
+      updateStatusUI(a.status)
+      a.stage_status = "Cannot pay"
+      a.stage = "special"
+      pdata.done_button = false
+      pdata.undo_button = false
+      a.disallow_finished = false
+      pdata.disable_reset = false
+    end
   else
     log("ERROR: processAction() unhandled special id "..tostring(special.id)); return --DEBUG
   end
@@ -2531,7 +2650,7 @@ function setGrande(region, color)
   if G.d.phase == "placement" then add()
   elseif G.d.phase == "actions" then
     local a = G.d.action
-    if a.stage == "special" then
+    if a.stage == "special" or a.stage == "waiting" then
       debug("set Grande during special")
       local allowed, any_region, opp = false, false, false
       if a.special.id == "grande" then
@@ -2546,6 +2665,14 @@ function setGrande(region, color)
         any_region = a.special.dest == "any_region"
         a.disallow_finished = false
         updatePlayerBoardUI(a.player)
+      elseif a.special.id == "moving_day" then
+        if not(a.special.placing) then debug("failed action not ready for placing"); return false end
+        if color == a.player then debug("failed opponent check"); return false end
+        if region ~= C.region_guids[G.d.players[color].selected_region] then debug("failed destination check"); return false end
+        G.d.players[color].cubes_to_place = {}
+        G.d.players[color].done_button = true
+        updatePlayerBoardUI(color)
+        allowed, opp, any_region = true,true,true
       end
       if color ~= a.player and not(opp) then debug("failed opponent check"); return false end
       if not(allowed) then debug("failed special check"); return false end
@@ -3540,8 +3667,84 @@ function playerDone(pcol)
             r.protected = true
             object_UI_setAttribute(region,"protected","active",true)
           elseif a.special.id == "relocate" then
-            debug("--- TODO: player done action for relocate")
+            debug("--- TODO: all players done for action relocate")
 
+          elseif a.special.id == "moving_day" then
+            debug("all players done for action moving_day")
+            if a.special.disk then
+              --set up players to place their grandes & new wait list
+              a.special.disk = nil
+              a.status.waitlist = {}
+              for _,p in pairs(a.waitlist) do
+                local pd = G.d.players[p]
+                pd.waiting = true
+                pd.show_disk = false
+                pd.disk_button = false
+                pd.undo_button = false
+                pd.done_button = false
+                pd.action_ui = false
+                pd.active = true
+                updatePlayerBoardUI(p)
+                pendingCubes("add",pd.grande)
+                table.insert(a.status.waitlist,{player_color=p,player_status="Placing"})
+              end
+              G.d.players[a.player].disable_reset = true
+              a.stage_status = "Waiting on placement"
+              updatePlayerBoardUI(a.player)
+              a.allow_veto = false
+              a.special.placing = true
+              a.status.info = a.name.."\n".."Opponents: Place Grandes in selected regions"
+              a.status.show = true
+              updateStatusUI(a.status)
+              a.waiting = #a.waitlist
+            elseif a.special.placing then
+              --clear all opponent playerboard UIs, enable finish button for action player
+              a.disallow_finished = false
+              a.stage = "special"
+              a.stage_status = "All opp done"
+              for p,pd in pairs(G.d.players) do
+                pd.active = p == a.player
+                if p == a.player then
+                  pd.action_ui = true
+                  pd.allow_undo = false
+                end
+                pd.done_button = false
+                pd.undo_button = false
+                updatePlayerBoardUI(p)
+              end
+            else
+              debug("ERROR: playerDone(): moving_day: not special.disk or special.placing")
+            end
+          elseif a.special.id == "civil_war" then
+            debug("player done selecting region for civil_war")
+            --TODO: a veto check here???
+            debug("--- TODO: if veto player, do veto check before executing civil_war on selected region.")
+            local region = getObjectFromGUID(C.region_guids[pdata.selected_region])
+            region.highlightOn(Color["Yellow"],2)
+            --return 1 caballero from active player from Court to Provinces
+            local g = pdata.court[#pdata.court]
+            a.undo.special[g] = {id="civil_war", color=pcol, guid=g, snap=getObjectFromGUID(g).getPosition()}
+            returnToProvinces(pcol,g)
+            --return all caballeros for all opponents in selected region to Provinces
+            local rd = G.obj.regions[C.region_guids[pdata.selected_region]]
+            for _,p in pairs(a.opponents) do
+              for g,_ in pairs(rd.caballeros[p]) do
+                a.undo.special[g] = {id="civil_war", color=p, guid=g, snap=getObjectFromGUID(g).getPosition()}
+                returnToProvinces(p,g)
+              end
+            end
+            a.allow_veto = false
+            a.disallow_finished = false
+            a.stage = "special"
+            a.stage_status = "Civil War done"
+            pdata.waiting = false
+            pdata.show_disk = false
+            pdata.disk_button = false
+            pdata.done_button = false
+            pdata.undo_button = false
+            pdata.action_ui = true
+            updatePlayerBoardUI(pcol)
+            updateBoardUI()
           else
             debug("ERROR: no matching special.id to execute after waiting completed")
           end
@@ -4263,7 +4466,7 @@ function undo(u)
   elseif u.id == "bridge" then --TODO:
     log("--- TODO: undo bridge action")
 
-  elseif u.id == "alliance" then --TODO: refactor for two markers
+  elseif u.id == "alliance" then --WORKING
     log("--- TODO: undo alliance action")
     for g,pos in pairs(u.snaps) do
       local o = getObjectFromGUID(g)
@@ -4277,6 +4480,24 @@ function undo(u)
       G.d.IK_alliance = simpleDeepCopy(u.old)
       G.d.IK_alliance.active = false
     else G.d.IK_alliance = nil end
+  elseif u.id == "moving_day" then --TODO:  Is there anything to undo?  not used?
+    log("--- TODO: undo moving_day action")
+
+    --TODO: everything is handled in processAction():reset so probably get rid of this elseif
+
+  elseif u.id == "queen" then --WORKING
+    log("undo queen action")
+    G.d.action.court_any_region = nil
+    G.d.queen = nil
+  elseif u.id == "civil_war" then --WORKING
+    log("undo civil_war")
+    local o = getObjectFromGUID(u.guid)
+    local pd = G.d.players[u.color]
+    table.remove(pd.provinces,indexOf(pd.provinces,u.guid))
+    o.setLock(false)
+    o.setPosition(u.snap)
+    Wait.condition(function() o.setLock(true) end,function() return o.resting end,5)
+    updateBoardUI()
   else
     log("ERROR: undo() unknown id")
   end
@@ -6473,7 +6694,7 @@ function scoreRegion(region_guid)
         if index == 1 then
           --determine Home region and/or King bonus
           if region_guid ~= "castillo" and region.grandes[rank[1][1].player] then score=score + 2; grande = true end
-          if region_guid ~= "castillo" and region.king then score = score + 2; king = true end
+          if region_guid ~= "castillo" and region.king and not(G.d.queen) then score = score + 2; king = true end
         end
         if region.double_scoring then score = score * 2 end
         local e = {player=rank[index][1].player,caballeros=rank[index][1].val,score=score,grande=grande,king=king,}
