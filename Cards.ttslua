@@ -7,6 +7,9 @@
   power_cards: Intrigue and the King expansion cards
 
 ]]
+
+--TODO: retest all cards in entire base game
+
 cards = {
   ["a76961"] = { name="The Court",description="Move 2 Caballeros\nfrom the Court",
     court=4, special={id="prov2court",count=2,immediate=true,},
@@ -65,9 +68,6 @@ cards = {
   ["9aaffe"] = { name="Provinces",description="Send a Caballero for each\nplayer from Regions to Provinces",
     court=2, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\neach player on player boards"}, --TODO: retest
   },
-
-  --////////// TESTED ////////////////
-
   ["246189"] = { name="Veto",description="",
     court=2, special={id="veto"},
   },
@@ -150,120 +150,206 @@ cards = {
 
 --[[ Intrigue and the King cards]]
 power_cards = {
-  [10] = { name="Intrigue",description="Execute the Intrigue action",
+  [10] = { name="Intrigue",description="Execute the Intrigue action", --TODO: test veto
     prov=6, special={id="IK_intrigue", desc="Intrigue action"},
   },
-  [13] = { name="Moving Day (Field Day)", description="All opponents move their Grande",
+  [13] = { name="Moving Day (Field Day)", description="All opponents move their Grande", --TODO: test veto
     prov=4, special={id="moving_day",disk=true,desc="Opponents decide"},
   },
-  [15] = { name="Fiesta",description="Move 5 from\nCourt to the board",
+  [15] = { name="Fiesta",description="Move 5 Caballeros from Court to anywhere on the board", --TODO: test veto
     prov=0, special={id="move_court_2_reg", dest="any_region", max=5, court_ok=true, desc="TODO action description"},
   },
-  [20] = {name="Court Any Region",description="Ignore King adjacency\nduring Caballero card",
+  [20] = {name="Court Any Region",description="Ignore King adjacency\nduring Caballero card", --TODO: test veto
     prov=5, special={id="court_any_region", any_region=true, desc="Court to any region"},
   },
-  [25] = { name="Espionage", description="On next general scoring\nmove to any region",
+  [25] = { name="Espionage", description="On next general scoring\nmove to any region", --TODO: test veto
     prov=1, special={id="espionage", hold_card=true, desc="TODO"},
   },
-  [30] = { name="TODO name", description="Opp send Court back\nto the Provinces",
+  [30] = { name="TODO name", description="Opp send Court back\nto the Provinces", --TODO: test veto
     prov=5, special={id="court_2_prov", opp=true, immediate=true, desc="TODO description"},
   },
-  [35] = { name = "Coup!", description="Opp Grandes go\nto the Castillo",
+  [35] = { name = "Coup!", description="Opp Grandes go\nto the Castillo", --TODO: test veto
     prov=4, special={id="IK_coup", immediate=true, desc="TODO",},
   },
   [40] = {name="Veto",description="", --TODO:WIP  Lots to test here!
     prov=4, special={id="veto"},
   },
-  [43] = { name="Cival War", description="Remove all opp Caballeros from one region & pay 1 Caballero from Court",  --TODO:WIP
+  [43] = { name="Cival War", description="Remove all opp Caballeros from one region & pay 1 Caballero from Court", --WORKS
     prov=4, special={id="civil_war"}
   },
-  [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces",
+  [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces", --TODO: test veto
     prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
   },
-  [53] = { name="Alliance", description="Place Alliance marker\nbetween two regions\nwill be scored as one",
+  [53] = { name="Alliance", description="Place Alliance marker\nbetween two regions\nwill be scored as one", --TODO: test veto
     prov=4, special={id="alliance", desc="Place Alliance marker"},
   },
-  [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions",
+  [60] = { name="Special Scoring",description="Score all the\n'6' & '7' Regions", --TODO: test veto
     prov=4, special={id="special_scoring",immediate=true,region_score={6,7},desc="Special Scoring: 6 & 7 regions"},
   },
-  [63] = { name="Bridge Building",description="Place the bridge\njoining two regions",
+  [63] = { name="Bridge Building",description="Place the bridge joining two adjacent regions",  --TODO: undo --TODO: test veto  --TODO: 1 cube court -> prov
     prov=3, special={id="bridge", desc="Place the bridge"}
   },
-  [66] = { name="Take 6!", description="Limit a Region to\n6 Caballeros max",
+  [66] = { name="Take 6!", description="Limit a Region to\n6 Caballeros max",  --TODO: test veto  --TODO: check/test for excess returned to court (e.g. on scoring Castillo dist)
     prov=4, special={id="take6", count=6, disk=true; players="active", leave_face_up=true, hold_card=true, desc="Select a region",},
   },
-  [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces",
+  [70] = { name="Provinces",description="Send 1 Caballero for each\nplayer from Regions to Provinces", --TODO: test veto
     prov=3, special={id="ret2provinces",count=1,each=true,all=true,desc="Drop 1 Caballero from\nopp on player boards"},
   },
-  [73] = { name="Revolution", description="Reverse one mobile scoreboard in play",  --TODO
+  [73] = { name="Revolution", description="Reverse one mobile scoreboard in play on a region",  --TODO:WIP  TODO: test in an alliance   --TODO: test veto
     prov=3, special={id="revolution", desc="Select a scoreboard",},
   },
-  [75] = { name="Reserves", description="One cube from Provinces on card, place before any scoring", --TODO:WIP  --TODO: test with remove_face_up
+  [75] = { name="Reserves", description="One cube from Provinces on card, place before any scoring", --TODO: test veto
     prov=3, special={id="reserves", leave_face_up=true, hold_card=true, immediate=true, desc="TODO: reserves"},
   },
-  [80] = { name="Relocate", description="Move Grande and any 3 Caballeros to one region",
+  [80] = { name="Relocate", description="Move Grande and any 3 Caballeros to one region", --TODO: test   --TODO: test veto
     prov=3, special={id="relocate", max=3, dest="any_region", desc="Move Grande & any 3 Caballeros"},
   },
-  [90] = {name="Mobile ScoreBoard",description="Place or move a\nMobile Score Board",
+  [90] = {name="Mobile ScoreBoard",description="Place or move a\nMobile Score Board", --TODO: test veto
     prov=4, special={id="mobile_score_board",desc="Move a scoreboard"},
   },
-  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region",
+  [93] = { name="Quarantine", description="Place mobile scoreboard\nupside down in region", --TODO: test veto
     prov=3, special={id="IK_quarantine", desc="Choose a region",},
   },
-  [95] = { name="Royal Protection", description="Select a region to recieve\nKing's protection this round",
+  [95] = { name="Royal Protection", description="Select a region to recieve\nKing's protection this round", --TODO: test veto
     prov=3, special={id="royal_protection", desc="TODO desc"},
   },
-  [100] = { name="Special Scoring",description="Score all the\n'4' Regions",
+  [100] = { name="Special Scoring",description="Score all the\n'4' Regions", --TODO: test veto
     prov=3, special={id="special_scoring",immediate=true,region_score=4,desc="Special Scoring: 4 regions"},
   },
-  [110] = { name="Special Scoring",description="Score the Castillo",
+  [110] = { name="Special Scoring",description="Score the Castillo", --TODO: test veto
     prov=2, special={id="special_scoring", immediate=true, castillo=true, desc="Special Scoring: Castillo"},
   },
-  [113] = { name="Whirlwind (Hurricane)", description="Select after bidding. Remove 1/2 opp Caballeros start of turn", --TODO sel reg -> bidding, immediate at start of turn
+  [113] = { name="Whirlwind (Hurricane)", description="Select after bidding. Remove 1/2 opp Caballeros start of turn", --TODO: test veto
     prov=3, special={id="whirlwind", immediate=true, desc="no special"},
   },
-  [120] = { name="Special Scoring",description="Score all the\n'5' Regions",
+  [120] = { name="Special Scoring",description="Score all the\n'5' Regions", --TODO: test veto
     prov=2, special={id="special_scoring",immediate=true,region_score=5,desc="Special Scoring: 5 regions"},
   },
-  [125] = { name="Remove a card", description="Remove a card with\n'Leave Face Up'",  --TODO: test with 'reserves' --TODO: should this respect king/quarantine/protected?
+  [125] = { name="Remove a card", description="Remove a card with\n'Leave Face Up'", --TODO: test veto
     prov=3, special={id="remove_face_up", desc="Click on a card"},
   },
-  [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring",
+  [130] = { name="Double Scoring", description="Choose a region for\n2x next General Scoring", --TODO: test veto
     prov=2, special={id="region_score_double", disk=true, players="active", desc="Choose a region",},
   },
-  [135] = { name="Special Scoring", description="Score one region where you have 2 Caballeros but not the majority",  --TODO: test
+  [135] = { name="Special Scoring", description="Score one region where you have 2 Caballeros but not the majority",  --TODO: test --TODO: test veto
     prov=2, special={id="special_scoring", no_maj=true, disk=true, players="active", count=2, desc="Choose a region"},
   },
-  [140] = { name="Castillo", description="Send 2 Caballeros each\nto Castillo. Yours from Court",
-    prov=1, special={id="IK_castillo", count=2, desc="Opp: 2 from board\nYou: 2 from Court"},
+  [140] = { name="Castillo", description="Send 2 Caballeros each\nto Castillo. Yours from Court",  --TODO: veto issue if partial & not yet moved own caballeros --TODO: test veto
+    prov=1, special={id="IK_castillo", count=2, desc="Opp: 2 from board\nYou: 2 from Court"}, --TODO: set immediate flag to trigger veto check at beginning only?
   },
-  [145] = { name="Special Scoring", description="All Caballeros\nret to Provinces",
+  [145] = { name="Special Scoring", description="All Caballeros\nret to Provinces", --TODO: test veto
     prov=0, special={id="special_scoring", secret=true, ret_caballeros=true, players="active", desc="Active Player\nSelect a region",},
   },
-  [150] = { name="Special Scoring", description="Active Player\nScore a Secret Region",
+  [150] = { name="Special Scoring", description="Active Player\nScore a Secret Region", --TODO: how to select the Castillo?  Use buttons instead? --TODO: test veto
     prov=1, special={id="special_scoring",secret=true,players="active",desc="Active Player\nSelect a region",},
   },
-  [153] = { name="The Queen (Mistress)", description="King is distracted this round, no King bonus",
+  [153] = { name="The Queen (Mistress)", description="King is distracted this round, no King bonus", --TODO: test veto
     prov=1, special={id="queen", immediate=true, desc="The Queen"},
   },
-  [155] = { name="Special Scoring", description="Select 3 regions then\nopp chooses scoring", --BUG: remove button on opp when selected, also set UI status for opponent deciding
+  [155] = { name="Special Scoring", description="Select 3 regions then\nopp chooses scoring", --TODO: test veto
     prov=1, special={id="special_scoring", selected=3, desc="TODO description"},
   },
-  [160] = {name="Royal Advisor",description="Move the King to\nan adjacent Region",
+  [160] = {name="Royal Advisor",description="Move the King to\nan adjacent Region", --TODO: test veto
     prov=0, special={id="king",desc="Move the King"},
   },
-  [170] = { name="Special Scoring",description="Score region(s) selected\nby > 1 player",
+  [170] = { name="Special Scoring",description="Score region(s) selected\nby > 1 player", --TODO: test veto
     prov=0, special={id="special_scoring",secret=true, disk=true, players="all", dupes=true, desc="All select a region\nScore only duplicates!"}, --TODO: test
   },
-  [180] = { name="The King",description="Execute the King action",
+  [180] = { name="The King",description="Execute the King action", --TODO: test veto
     prov=0, special={id="IK_king",desc="King action"},
   },
   [0] = { name="Joker", description="Choose your Power Card last",
     prov=0, special={id="joker"}, desc="TODO: Joker"},
 }
+
 IK_king = { name="The King",description="Move the King\nto any Region",
-  special={id="king",IK="IK_king",dest="any_region",desc="Move the King"},
+  special={id="king",IK="IK_king",dest="any_region",desc="Move the King",},
+  tip = "You may move the King before or after you place Caballeros.\n"..
+  "You may not place the King in the Castillo.",
 }
+
 IK_intrigue = { name="Intrigue",description="Move 1 opp Caballero\nor all of yours",
   special={id="move_either_caballero",IK="IK_intrigue",single_origin=true,dest="any_region",desc="TODO"},
+  tip = "You must choose one of two actions:\n"..
+  "You may move 1 foreign Caballero OR You move all of your own Caballeros from one region to another region.\n"..
+  "The King's region is always taboo!",
+}
+
+power_card_tips = {
+  [0] = "When you play this card, you will wait for all of your opponents to play a Power card.\n"..
+  "Once all have done so, you play another Power card out of your hand to replace it.\n"..
+  "You may not play a number that has already been played.",
+  [10] = "This is the Power card with the lowest value. You are therefore the player that takes the Intrigue card and executes its action.",
+  [13] = "If an opponent's Grande is in the King's region, that Grande does not participate.",
+  [15] = "You do not receive any new Caballeros from the Province into your Court.\n"..
+  "In addition to the Caballeros your Caballero card allows you to place, you may also place another 5 Caballeros.",
+  [20] = "You may place Caballeros in the region of your choice, instead of only in regions neighboring the King's region.\n"..
+  "The King's region itself is always taboo!",
+  [30] = "This does not afect you. It only affects your opponents",
+  [40] = "You may only Veto! one special action that has not been completed.\n"..
+  "You cannot prevent placement of Caballeros in the Court action.\n"..
+  "You may also prevent only part of a special action (the remainder of it).\n"..
+  "When a player has played a Veto! card, others must announce their special actions before executing them.\n"..
+  "Actions that occur immediately will show a dialog asking if the Veto! holder wishes to use it or not\n"..
+  "A player with the Veto! may stop an action he has heard before it is executed.\n"..
+  "The veto prevents the remainder of the special action.",
+  [43] = "You may not choose the King's region.\n"..
+  "Return all opponent's Caballeros in that region to the Courts.\n"..
+  "If you have Caballeros in the chosen region, they remain there.\n"..
+  "You return one Caballero from your Court to the Provinces as payment.\n"..
+  "If you do not have any Caballeros in your Court, you may not execute this action.",
+  [50] = "In clockwise order, your opponents (not you) choose which 3 of their Caballeros to return to the provinces.",
+  [53] = "During General Scoring, all players Caballeros are combined in the two marked regions.\n"..
+  "The scores and bonuses for both regions are combined.  2x scoring applies to the combined alliance!\n"..
+  "If either of the regions is the King's region, or a player's home region, bonus points are awarded accordingly.\n"..
+  "After general scoring is completed, the alliance markers are removed.\n"..
+  "If another player plays the Alliance card before the next general scoring, they may move the Alliance markers to different regions.\n"..
+  "You may not move a marker into or out of the King's region.",
+  [60] = "Triggers a special scoring for all regions that have a 6 or 7 point value in the first position.",
+  [63] = "Place the bridge between two adjacent regions, niether can be the King's region.\n"..
+  "In addition to the Caballeros you may place this turn, you must pay a Caballero from your Court to the Provinces.\n"..
+  "As long as the bridge remains: at the start of your turn in following rounds you may freely move your Caballeros between these two regions.\n"..
+  "In each General Scoring, the player who controls the bridge scores 1 point.\n"..
+  "If another player plays the Bridge card, they take the bridge and the Caballero is returned to your Court",
+  [66] = "You may not place the limit in the King's region.\n"..
+  "If (e.g., by secret disc) more Caballeros are placed in the region than the limit, these excess Caballeros are returned to the players' Courts.",
+  [70] = "You choose 1 Caballero belonging to each opponent (not your own) and drop it on the player's board",
+  [73] = "When reversed, the 8/4/0 mobile scoreboard becomes a 0/4/8 scoreboard, so that the player with the fewest Caballeros (at least one) scores 8 points.\n"..
+  "The player with the second fewest Caballeros scores 4 points.\n"..
+  "The same applies to the 4/0/0 mobile scoreboard.\n"..
+  "If another player plays the Revolt card, they may return a mobile scoreboard to its original position or reverse the other scoreboard.\n"..
+  "When a player moves a reversed scoreboard, it remains reversed.",
+  [80] = "You may not take your Grande or Caballeros from the King's region.\n"..
+  "You may not place your Grande in the King's region or the Castillo.",
+  [90] = "You may move a mobile scoreboard either onto the board for the first time or into a different region if it is already on the board.\n"..
+  "A mobile scoreboard may also be placed on the Castillo.\n"..
+  "A mobile scoreboard may not be moved into or out of a taboo region.\n"..
+  "A mobile scoreboards may not be placed in a region already containing one.",
+  [93] = "Any region hosting the quarantine marker may not be changed in any way. It is taboo just like the King's region.",
+  [100] = "Score all regions with a value of 4 (four) in the first space on the scoreboard.\n"..
+  "If a region is modified by a mobile scoreboard, then only consider the values shown on the mobile scoreboard.",
+  [110] = "The Castillo is scored. The Caballeros remain in the Castillo and are not distributed until the next general scoring",
+  [113] = "After all have played a card secretly select a region.\n"..
+  "At start of your turn all opponents return 1/2 Caballeros rounded up from this region to their Court.\n"..
+  "All Caballeros from your Court this turn must go in this region.\n"..
+  "Playing this card has no Special action.",
+  [120] = "Score all regions with a value of 5 (five) in the first space on the scoreboard.\n"..
+  "If a region is modified by a mobile scoreboard, then only consider the values shown on the mobile scoreboard.",
+  [130] = "The double scoring only occurs during the next general scoring.\n"..
+  "If a special scoring occurs in the region before the next general scoring, the score is not doubled.\n"..
+  "After the next general scoring, the Double Scoring is removed from the region.",
+  [140] = "You may choose to forfeit this action entirely.\n"..
+  "However, if you move any foreign Cabaleros to the Castillo, you must also move 2 of your own Caballeros to the Castillo.\n"..
+  "You may not take any Cabaleros from the King's region.",
+  [150] = "You may score any region, including the King's region or the Castillo.\n"..
+  "If you choose to score the Castillo, Caballeros remain in the Castillo after it is scored",
+  [153] = "If there is aspecial scoring in the King's region this round, the King's bonus will not be awarded.\n"..
+  "Also, if there is a general scoring directly following this round, the King's bonus will not be awarded.\n"..
+  "Home region bonuses score as usual.\n"..
+  "At the beginning of the next round the Queen effect is removed.",
+  [160] = "Before or after you place Caballeros, you may move the King to an adjacent region.",
+  [170] = "All players secretly select a region.\n"..
+  "Any region selected by 2 or more players is scored.\n"..
+  "The Castillo cannot be selected.",
+  [180] = "This is the Power card with the highest value. You are therefore the player that takes the King's Card and executes its action.",
 }

@@ -24,6 +24,14 @@ C.stacks={"e4530b","d81048","1baff8","f8d8b2","a57d8a",}
 C.hand_base_game_z = -40.5 --z position of player hands in base game
 --[[ General stuffs ]]
 C.table_order={"Yellow","Purple","Green","Red","Blue"}
+C.scoreboard_button={
+  click_function="scoreboardClick",
+  function_owner=Global,
+  position={0,1,0},
+  width=2000,
+  height=1000,
+  color={r=0,g=0,b=0,a=0},
+}
 C.card_button={
   click_function="cardClick",
   function_owner=Global,

@@ -3,19 +3,31 @@
 --TODO: document, credits, etc.
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
+  -KNOWN ISSUES:
+  -TODO: Revolution combined with Alliance: how to handle the combined scoring?  May get a weird result currently when two region's
+          scores are added together and one is reversed.
+          FIXED: needs testing, FAQ: Entire alliance as reversed by Revolution.  Same as 2x scoring.  At least it's consistent?
+
+
   -MVP TODO items remaining:
 
+  -BUG: (base game) if more than one player has a veto card, G.d.veto_player is overwritten by second player to pick Veto card.
+        All checks on it are broken.  Need a list?  Only in base game.
+        G.d.veto_round is also overwritten (broken) as well in same way.
+  -BUG: (I&K) Bridge: need to return 1 Caballero from court to provinces. Don't allow action if court empty?  Return to court when bridge moved.
+  -BUG: (I&K) Bridge: no undo implemented yet.
   -BUG: (I&K) Done button should warn if Caballero action not used after finishing Special Action.
   -BUG: (FIXED? TESSTING) Done button should show at start of player turn
   -BUG: (I&K) Yellow cards are hard to read, numbers need black border or something
-  -BUG: (I&K) no undo for Bridge (63).  Don't think I did one.
   -TODO: (I&K) implement "missing" cards from player's edition. 73, 113
               Done: 153, 13, 43
+  -TODO: populate and use the power_card_tips data. (Cards.ttslua).  Use env var or startup option to use?
 
   -Ongoing stuff
   -TODO: really need to refactor design for 'Done' button (and maybe 'Undo' as well to match).
         overloaded used between action, disk selection and cube placement causes very ugly complex
         conditional code in the button handler.  Maybe separate buttons (or button onClick functions set in UI).
+        In conjunction with this, also refactor how updatePlayerBoardUI() works, more explicit settings in player/action data for UI state.
   -TODO: base game: disable Done/Undo buttons during action (when Finished/Reset are showing).  Only show during action:stage == 'main'
   -BUG: base game: king card didn't flip face up at start of bidding phase (king card was held by last player before bid phase)
         WORKAROUND: just unlock and flip it manually.
@@ -42,14 +54,18 @@
   -TODO: waitLock(obj) utility function with timeout that logs debug info.  Maybe put in utils.ttslua?
 ]]
 env = {}
-env.version = "0.1 Alpha"
+env.version = "0.9 Beta"
 env.debug = false
 env.trace = true
 env.trace2 = false
+---------------------------
+env.use_saved_data = true -- set false to refresh saved data in game save during DEVELOPMENT
+---------------------------
+-- NOTE: Disable env.test_players for live game, use in DEVELOPMENT only
 -- env.test_players = {"Blue","Red","Green","Purple","Yellow"}
-env.test_players = {"Green","Purple",}
+env.test_players = {"Green","Purple"}
+----------------------------
 env.in_dev = false --leave some objects interactable for dev purposes.
-env.use_saved_data = true
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
 env.save_stats = false --log save data size every onSave() call.  Noisy.
 env.lock_player_cubes = true --false for testing
@@ -60,11 +76,12 @@ env.game_verbose = true
 env.short_game = false
 env.intrigue_king_exp = false --I&K Expansion
 env.grandissimo_exp = false --TODO: future option, maybe
-env.inquisitor_colonies_exp = false --TODO: future expansion, probably not
+--env.inquisitor_colonies_exp = false --TODO: future expansion, probably never do this
+env.card_tooltips = true --TODO: make a startup option?
 --[[ EXPERIMENTAL cube flasher settings]]
 env.flasher_rate = 30 --frames between cube color changes when pending
 env.flasher_debug = false -- periodically log flasher state
-env.flasher_debug_cycles = 60 --log every flasher_debug_cycles * flasher_rate frames
+env.flasher_debug_cycles = 60 --if debug log every flasher_debug_cycles * flasher_rate frames
 
 G = {} --persistent game data
 U = {} --persistent UI state
@@ -112,6 +129,7 @@ function onLoad(saved_data)
     G.env = {}
     G.env.verbose = env.game_verbose
     G.env.short_game = env.short_game
+    G.env.card_tooltips = env.card_tooltips
     G.env.intrigue_king_exp = env.intrigue_king_exp
     G.env.grandissimo_exp = env.grandissimo_exp
     G.env.inquisitor_colonies_exp = env.inquisitor_colonies_exp
@@ -406,12 +424,18 @@ function setupGame(player, button, id)
     local cleanup = true
     d.takeObject({guid=C.IK.king,position=C.IK.king_home_pos,
       callback_function=function(card)
-        Wait.condition(function() card.setLock(true) end,function() return card.resting end, 5)
+        Wait.condition(function()
+          card.setLock(true)
+          if G.env.card_tooltips then card.setDescription(IK_king.tip) end
+        end,function() return card.resting end, 5)
       end,
     })
     d.takeObject({guid=C.IK.intrigue,position=C.IK.intrigue_home_pos,
       callback_function=function(card)
-        Wait.condition(function() card.setLock(true) end,function() return card.resting end, 5)
+        Wait.condition(function()
+          card.setLock(true)
+          if G.env.card_tooltips then card.setDescription(IK_intrigue.tip) end
+        end,function() return card.resting end, 5)
       end,
     })
     G.d.IK_caballero_cards = {}
@@ -445,7 +469,7 @@ function setupGame(player, button, id)
   else
     getObjectFromGUID(C.IK.rules).destruct()
     getObjectFromGUID(C.bridge).destruct()
-    getObjectFromGUID(C.alliance).destruct()
+    for g,_ in pairs(C.alliance_markers) do getObjectFromGUID(g).destruct() end
     getObjectFromGUID(C.IK.setup_deck).destruct()
     getObjectFromGUID(C.IK.setup_card).destruct()
     getObjectFromGUID(C.table_extension).destruct()
@@ -789,7 +813,7 @@ function startBidPhase()
       if G.d.veto_player then G.d.veto_player = nil end
     else
       if G.d.veto_round and G.d.round - G.d.veto_round >= 2 then
-        local card = getObjectFromGUID(G.d.players[G.d.veto_player].veto_card)
+        local card = getObjectFromGUID(G.d.players[G.d.veto_player].veto_card)  --BUG: base game multiple veto holder bug
         assert(card, "startBidPhase(): unable to locate veto card object")
         getObjectFromGUID(C.trash).putObject(card)
         G.d.players[G.d.veto_player].veto_card = nil
@@ -869,6 +893,7 @@ function startBidPhase()
     end
   end
   if G.d.queen then G.d.queen = nil end --see I&K card #153
+  if G.d.whirlwind then G.d.whirlwind = nil end --see I&K card #113
 end
 --[[ Return action data to initial state
 --]]
@@ -1047,16 +1072,78 @@ function startPlayerActions(pcol)
   local pdata = G.d.players[pcol]
   resetAction()
   local a = G.d.action
+  if G.d.whirlwind and G.d.whirlwind.player == pcol then
+    local w = G.d.whirlwind
+    log("--- handle whirlwind at start of player turn")
+    local region = getObjectFromGUID(w.region)
+    if G.env.verbose then broadcastToAll(G.obj.regions[w.region].name.." is hit with a Whirlwind") end
+    if G.d.veto_player and not(G.d.veto_declined or a.vetoed) then
+      log("--- TODO: handle wait on veto check for whirlwind result")
+      --show veto dialog
+      G.d.veto_declined = false
+      G.d.confirm_lock = true
+      UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
+      UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+      UI_setAttribute("veto_msg_txt","text","Veto _Whirlwind_?")
+      UI_setAttribute("veto_pnl","hidden","")
+      UI_setAttribute("veto_pnl","response_action","startPlayerActions")
+      getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
+      UI_setAttribute("veto_pnl","active",true)
+      region.highlightOn(Color["Yellow"])
+      return
+    else
+      if not(G.d.whirlwind.vetoed) then
+        region.highlightOn(Color["Yellow"],2)
+        log("--- immediate whirlwind result")
+        local rd = G.obj.regions[w.region]
+        for p,list in pairs(rd.caballeros) do
+          if p ~= w.player and sizeOf(list) > 0 then
+            --return 1/2 rounded up of player's caballeros to Court
+            local n = math.ceil(sizeOf(list) / 2)
+            log("Returning "..tostring(n).." for player "..p)
+            for g,_ in pairs(list) do
+              if n == 0 then break end
+              returnToCourt(p,g)
+              list[g] = nil
+              n = n - 1
+            end
+          end
+        end
+      else
+        log("--- TODO: anything to do other than skipping return cubes if Whirlwind is vetoed?")
+      end
+    end
+  end
   a.player = pcol
   a.description = "Choose an action:"
-  a.status.info = "Active Player\nChoose actions for\n"
+  a.status.info = "Active Player\nChoose an action"
   for _,c in ipairs(G.d.player_order) do if c~=pcol then table.insert(a.opponents,c) end end
   local cinfo = nil
   if G.env.intrigue_king_exp then
     cinfo = power_cards[pdata.power_bid]
     a.name = cinfo.name
     a.court = pdata.court_limit --HACK: why is this set in player data?  Should get from cinfo?
-    if cinfo.special.id == "veto" then
+    if G.d.whirlwind and G.d.whirlwind.player == pcol then
+      if a.vetoed then G.d.whirlwind = nil
+      else a.court_any_region = true end
+      --special action treated as executed regardless of veto, no I&K King or Intrigue allowed
+      pdata.IK_special_action = false
+      a.special = {}
+      a.IK.special = simpleDeepCopy(cinfo.special)
+      a.IK.special.completed = true --don't trigger unused action warn on Done
+      if pdata.IK_king_card then
+        a.IK.king = simpleDeepCopy(IK_king)
+        pdata.IK_king_action = true
+        pdata.IK_intrigue_action = false
+      elseif pdata.IK_intrigue_card then
+        a.IK.intrigue = simpleDeepCopy(IK_intrigue)
+        pdata.IK_king_action = false
+        pdata.IK_intrigue_action = true
+      else
+        pdata.IK_king_action = false
+        pdata.IK_intrigue_action = false
+      end
+    elseif cinfo.special.id == "veto" then
       log("TODO: startPlayerActions(), player holds I&K Veto power card")
       pdata.IK_special_action = false
       a.status.info = "Veto Player has\nno special action\nduring turn"
@@ -1108,7 +1195,6 @@ function startPlayerActions(pcol)
         pdata.IK_king_action = false
         pdata.IK_intrigue_action = true
       else
-        -- pdata.IK_special_action = true
         pdata.IK_king_action = false
         pdata.IK_intrigue_action = false
       end
@@ -1135,7 +1221,7 @@ function startPlayerActions(pcol)
       card.deal(1,pcol)
       pdata.veto_card = card.getGUID()
       table.remove(G.d.action_cards,indexOf(G.d.action_cards,card.getGUID()))
-      G.d.veto_player = pcol
+      G.d.veto_player = pcol                                                      --BUG: base game multiple veto holder bug
       G.d.veto_round = G.d.round
     else
       a.status.info = a.status.info..cinfo.name
@@ -1167,6 +1253,8 @@ function processAction(pcol, opt)
       if a.vetoed then a.vetoed = false end --may have been set so clear it
       a.description = "Move from Court"
       pdata.disable_reset = false
+      pdata.undo_button = false
+      pdata.done_button = false
       updatePlayerBoardUI(pcol)
       table.insert(a.sequence,1,"court")
     else
@@ -1174,28 +1262,35 @@ function processAction(pcol, opt)
     end
   elseif opt == "king" then -- I&K King card action
     if a.stage == "main" then
-      pdata.IK_special_action = false
-      a.IK.special.completed = true --don't trigger unused action warn on Done
       a.special = simpleDeepCopy(a.IK.king.special)
       a.name = "The King"
-      a.undo.IK_king = {}
-      a.undo.IK_king["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
+      if not(a.IK.special.completed) then --only if not already set
+        pdata.IK_special_action = false
+        a.IK.special.completed = true --don't trigger unused action warn on Done
+        a.undo.IK_king = {}
+        a.undo.IK_king["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
+      end
       table.insert(a.sequence,1,"IK_king")
       doSpecial(pcol)
     else log("ERROR: incorrect stage for I&K King: "..tostring(a.stage)); return end   --DEBUG
   elseif opt == "intrigue" then --I&K Intrigue card action
     if a.stage == "main" then
-      pdata.IK_special_action = false
-      a.IK.special.completed = true --don't trigger unused action warn on Done
       a.special = simpleDeepCopy(a.IK.intrigue.special)
       a.name = "Intrigue"
-      a.undo.IK_intrigue = {}
-      a.undo.IK_intrigue["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
+      if not(a.IK.special.completed) then --only if not already set
+        pdata.IK_special_action = false
+        a.IK.special.completed = true --don't trigger unused action warn on Done
+        a.undo.IK_intrigue = {}
+        a.undo.IK_intrigue["IK_special_action"] = {id="IK_special_action", pcol=pcol, state=true}
+      end
       table.insert(a.sequence,1,"IK_intrigue")
       doSpecial(pcol)
     else log("ERROR: incorrect stage for I&K Intrigue: "..tostring(a.stage)); return end   --DEBUG
   elseif opt == "special" then
     if a.stage == "main" then
+      pdata.undo_button = false
+      pdata.done_button = false
+      updatePlayerBoardUI(pcol)
       if a.IK then
         if a.IK.special.hold_card then
           log("---place power card in holding area")
@@ -1443,6 +1538,8 @@ function processAction(pcol, opt)
       else
         log("ERROR: processAction() incorrect stage for reset: "..tostring(a.stage)); return   --DEBUG
       end
+      pdata.undo_button = true
+      pdata.done_button = true
     end
     a.stage = "main"
     a.description = "Choose an action"
@@ -1477,13 +1574,14 @@ function doSpecial(pcol)
   local a = G.d.action
   local special = a.special
   if special.immediate and special.id ~= "special_scoring" then
-    if G.d.veto_player and G.d.veto_player ~= pcol then
+    if G.d.veto_player and G.d.veto_player ~= pcol then                                     --BUG: base game multiple veto holder bug
       if not(G.d.veto_declined) then
         log("---TESTING: activate veto check for an immediate special action")
         G.d.confirm_lock = true
         UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
         UI_setAttribute("veto_player_txt","text",G.d.veto_player)
         UI_setAttribute("veto_msg_txt","text","Veto _"..a.name.."_?")
+        UI_setAttribute("veto_pnl","response_action","processAction")
         if G.env.intrigue_king_exp then
           UI_setAttribute("veto_pnl","hidden","")
           getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
@@ -1747,9 +1845,7 @@ function doSpecial(pcol)
       a.special.selecting_regions = true
       a.allow_veto = true
       --enable buttons on regions
-      for g,_ in pairs(G.obj.regions) do
-        getObjectFromGUID(g).createButton(C.region_button)
-      end
+      for g,_ in pairs(G.obj.regions) do getObjectFromGUID(g).createButton(C.region_button) end
       a.special.region_candidates = {}
       pdata.waiting = true
       pdata.show_disk = false
@@ -1772,7 +1868,7 @@ function doSpecial(pcol)
         local rd = G.obj.regions[g]
         if sizeOf(rd.caballeros[pcol]) == 2 then
           for p,d in pairs(rd.caballeros) do
-            if p ~= pcol and sizeOf(d) > 2 then
+            if p ~= pcol and sizeOf(d) >= 2 then
               table.insert(pdata.allowed_regions,i)
               break
             end
@@ -2335,6 +2431,7 @@ function doSpecial(pcol)
     log("set up civil war region selection")
     if #pdata.court > 0 then
       a.stage = "waiting"
+      a.allow_veto = true
       a.status.waitlist={}
       a.status.info = a.name.."\n"..a.description
       table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
@@ -2370,6 +2467,49 @@ function doSpecial(pcol)
       pdata.undo_button = false
       a.disallow_finished = false
       pdata.disable_reset = false
+    end
+  elseif special.id == "revolution" then
+    log("set up special action revolution")
+    a.allow_veto = true
+    --enable a button on all mobile scoreboards in play (not if flipped to Quarantine)
+    local none = true
+    for g,msb in pairs(G.d.MSB) do
+      if msb.placed and not(msb.quarantine) then
+        getObjectFromGUID(g).createButton(C.scoreboard_button)
+        none = false
+      end
+    end
+    --if no boards in play, update action & UI accordingly, otherwise setup waiting state
+    if none then
+      log("WARN: doSpecial():revolution: no mobile scoreboards in play")
+      a.status.info = "No mobile scoreboards in play"
+      a.status.waitlist = {}
+      a.status.show = true
+      updateStatusUI(a.status)
+      a.stage_status = "No Scoreboards"
+      a.stage = "special"
+      pdata.done_button = false
+      pdata.undo_button = false
+      a.disallow_finished = false
+      pdata.disable_reset = false
+    else
+      a.undo.special["revolution"] = {id="revolution",buttons=true,board=nil,region=nil}
+      a.stage = "special"
+      a.status.waitlist={}
+      a.status.info = a.name.."\n"..a.description
+      a.stage_status = "Click on scoreboard"
+      updateStatusUI(a.status)
+      pdata.active = true
+      pdata.waiting = false
+      pdata.show_disk = false
+      pdata.disk_button = false
+      pdata.show_stage = false
+      pdata.undo_button = false
+      pdata.done_button = false
+      pdata.action_ui = true
+      a.disallow_finished = true
+      pdata.disable_reset = false
+      updatePlayerBoardUI(pcol)
     end
   else
     log("ERROR: processAction() unhandled special id "..tostring(special.id)); return --DEBUG
@@ -2524,6 +2664,7 @@ function addCaballero(player, region, color, guid)
       end
     elseif a.stage == "court" then
       debug("add caballero during court")
+      if G.d.whirlwind and player == G.d.whirlwind.player and region ~= G.d.whirlwind.region then debug("failed whirlwind check"); return false end
       if not(a.court_any_region) then
         if not(neighborToKing(rdata)) then debug("failed king neigbor check"); return false end
       end
@@ -2866,6 +3007,7 @@ function addToCastillo(obj)
         end
       elseif a.stage == "court" then
         debug("add Caballero to Castillo during action court stage")
+        if G.d.whirlwind and color == G.d.whirlwind.player then debug("failed whirlwind check"); return false end
         if not(contains(a.pending_cubes,guid)) then
           if a.caballeros_moved >= a.court then debug("failed move limit check"); return false end
           if not(contains(G.d.players[a.player].court, guid)) then debug("failed source is court check"); return false end
@@ -3052,6 +3194,14 @@ function addQuarantine(region, guid)
   updatePlayerBoardUI(G.d.action.player)
   return true
 end
+
+--[[TODO: refactor playerDone function to separate overloaded behaviors for disk selection, cube placement, etc.
+by the active player and opponents making decisions when affected by the action in play.
+Messy and probably buggy now. Weird conditional checks currently gross.  Possibly have separate functions and
+assign callback function in action?  Use a more explicit action state and flatten some of these conditional statements?
+Separate 'done' functions might be better for end of turn done vs. done during selections/placement in the action.
+It's also kind of awkward between "Finished" and "Done" button use.  All of this could be cleaner.]]
+
 --[[ Player clicked "Done" button.
     NOTE: Done is overloaded.  May be clicked by current player to end current turn, or
     may be clicked by any player while 'waiting' on various player decisions (disk, cube moves, etc.)
@@ -3167,8 +3317,48 @@ function playerDone(pcol)
     pdata.done = true
     updatePlayerBoardUI(pcol)
     if #G.d.players_to_bid == 0 then
-      startActionPhase()
-    elseif pdata.power_bid == 0 then --special case, Joker played
+      if G.env.intrigue_king_exp and not(G.d.whirlwind) then
+        --Check for Whirlwind card played
+        for p,pd in pairs(G.d.players) do
+          if power_cards[pd.power_bid].special.id == "whirlwind" then G.d.whirlwind = {player=p}; break end
+        end
+      end
+      if G.env.intrigue_king_exp and G.d.whirlwind and not(G.d.whirlwind.region) then
+        if pdata.disk_button then
+          --whirlwind player has selected a region
+          pdata.disk_button = false
+          pdata.show_disk = false
+          updatePlayerBoardUI(pcol)
+          G.d.whirlwind.region = C.region_guids[pdata.selected_region]
+          startActionPhase()
+        else
+          --setup region selection for whirlwind player
+          local pd = G.d.players[G.d.whirlwind.player]
+          local allowed = {}
+          for i,r in ipairs(C.region_guids) do
+            local rd = G.obj.regions[r]
+            if not(rd.king or rd.protected or rd.quarantine) then table.insert(allowed,i) end
+          end
+          pd.allowed_regions = allowed
+          pd.selected_region = allowed[math.random(#allowed)]
+          pd.disk_button = true
+          pd.show_disk = true
+          pd.done_button = true
+          pd.undo_button = false
+          pd.action_ui = false
+          pd.done = false
+          pd.active = true
+          updatePlayerBoardUI(G.d.whirlwind.player)
+          G.d.status = {}
+          G.d.status.waitlist = {}
+          G.d.status.info = "Whirlwind Player:\nSecretly select a region\nWill be revealed on your turn"
+          G.d.status.show = true
+          updateStatusUI(G.d.status)
+        end
+      else
+        startActionPhase()
+      end
+    elseif G.env.intrigue_king_exp and pdata.power_bid == 0 then --special case, Joker played
       debug("handle the Joker, reorder player order and continue bidding phase")
       local i = indexOf(G.d.player_order, pcol)
       if i > 0 then
@@ -3206,13 +3396,14 @@ function playerDone(pcol)
       G.d.active_player = G.d.player_order[n]
       G.d.players[G.d.active_player].active = true
       updatePlayerBoardUI(G.d.active_player)
-      if G.d.players[G.d.active_player].power_card and G.d.players[G.d.active_player].power_bid == 0 then
-        --this player had played a Joker, move it to the trash
-        local o = getObjectFromGUID(G.d.players[G.d.active_player].power_card)
-        getObjectFromGUID(C.trash).putObject(o)
-        G.d.players[G.d.active_player].power_card = nil
-      end
-      if not(G.env.intrigue_king_exp) then
+      if G.env.intrigue_king_exp then
+        if G.d.players[G.d.active_player].power_card and G.d.players[G.d.active_player].power_bid == 0 then
+          --this player had played a Joker, move it to the trash
+          local o = getObjectFromGUID(G.d.players[G.d.active_player].power_card)
+          getObjectFromGUID(C.trash).putObject(o)
+          G.d.players[G.d.active_player].power_card = nil
+        end
+      else
         for g,d in pairs(G.obj.bid_buttons) do
           if not(d.selected) and indexOf(d.players,G.d.active_player) > 0 then d.visibility = {G.d.active_player}
           else d.visibility = {} end
@@ -3259,7 +3450,7 @@ function playerDone(pcol)
           end
         end
         updateStatusUI(a.status)
-        a.waiting = a.waiting - 1
+        if a.waiting > 0 then a.waiting = a.waiting - 1 end
         pdata.disk_button = false
         if a.special.disk then
           pdata.undo_button = a.waiting > 0
@@ -3717,10 +3908,27 @@ function playerDone(pcol)
             end
           elseif a.special.id == "civil_war" then
             debug("player done selecting region for civil_war")
-            --TODO: a veto check here???
-            debug("--- TODO: if veto player, do veto check before executing civil_war on selected region.")
             local region = getObjectFromGUID(C.region_guids[pdata.selected_region])
-            region.highlightOn(Color["Yellow"],2)
+
+            --TODO: a veto check here???
+            if G.d.veto_player and not(G.d.veto_declined) then
+              debug("--- TODO: do veto check before executing civil_war on selected region.")
+              G.d.confirm_lock = true
+              UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
+              UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+              UI_setAttribute("veto_msg_txt","text","Veto _"..a.name.."_?")
+              UI_setAttribute("veto_pnl","response_action","processAction")
+              if G.env.intrigue_king_exp then
+                UI_setAttribute("veto_pnl","hidden","")
+                getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
+              else UI_setAttribute("veto_pnl","hidden","re_deal") end
+              UI_setAttribute("veto_pnl","active",true)
+              region.highlightOn(Color["Yellow"])
+              return
+            else
+              region.highlightOn(Color["Yellow"],2)
+            end
+
             --return 1 caballero from active player from Court to Provinces
             local g = pdata.court[#pdata.court]
             a.undo.special[g] = {id="civil_war", color=pcol, guid=g, snap=getObjectFromGUID(g).getPosition()}
@@ -4480,7 +4688,7 @@ function undo(u)
       G.d.IK_alliance = simpleDeepCopy(u.old)
       G.d.IK_alliance.active = false
     else G.d.IK_alliance = nil end
-  elseif u.id == "moving_day" then --TODO:  Is there anything to undo?  not used?
+  elseif u.id == "moving_day" then            --TODO:  Is there anything to undo?  not used?
     log("--- TODO: undo moving_day action")
 
     --TODO: everything is handled in processAction():reset so probably get rid of this elseif
@@ -4498,6 +4706,38 @@ function undo(u)
     o.setPosition(u.snap)
     Wait.condition(function() o.setLock(true) end,function() return o.resting end,5)
     updateBoardUI()
+  elseif u.id == "revolution" then --TODO
+    log("undo revolution")
+    --disable any buttons on boards
+    for g,_ in pairs(G.d.MSB) do getObjectFromGUID(g).clearButtons() end
+    --reset board and region if set
+    if u.board then
+      local board = getObjectFromGUID(u.board)
+      local rot = board.getRotation()
+      rot.y = rot.y + 180
+      board.setRotation(rot)
+      --reset region score if set
+      if u.region then
+        local rd = nil
+        if u.region == "castillo" then
+          rd = G.obj.castillo
+        else
+          rd = G.obj.regions[u.region]
+        end
+        if u.prior then
+          if u.region == "castillo" then object_UI_setAttribute(C.board,"scoreboard","rotation","0 0 0")
+          else object_UI_setAttribute(u.region,"scoreboard","rotation","0 0 0") end
+          rd.revolution = true
+        else
+          if u.region == "castillo" then object_UI_setAttribute(C.board,"scoreboard","rotation","0 0 180")
+          else object_UI_setAttribute(u.region,"scoreboard","rotation","0 0 180") end
+          rd.revolution = nil
+        end
+        local tmp = simpleDeepCopy(rd.scoring)
+        rd.scoring[3] = tmp[1]; rd.scoring[2] = tmp[2]; rd.scoring[1] = tmp[3]
+      end
+      updateBoardUI()
+    end
   else
     log("ERROR: undo() unknown id")
   end
@@ -4794,7 +5034,7 @@ function startScoring(regions, special, subtitle)
       end
     end
     if s.phase == "veto_check" then -- //////////// Veto check for a special scoring //////////
-      if G.d.veto_player then
+      if G.d.veto_player then                                                         --BUG: base game multiple veto holder bug
         if s.restarting then
           s.restarting = false
           debug("skip veto_check setup, goto wait loop")
@@ -5172,6 +5412,10 @@ function startScoring(regions, special, subtitle)
             grandes={Blue=false,Red=false,Green=false,Purple=false,Yellow=false},
             caballeros={Blue={},Red={},Green={},Purple={},Yellow={},},
           }
+          --TODO: find out if one of the regions has Revolution (reversed scoring) and apply to virtual region
+          for _,rg in pairs(G.d.IK_alliance.regions) do
+            if G.obj.regions[rg].revolution then vr.revolution = true; break end
+          end
           for _,rg in pairs(G.d.IK_alliance.regions) do
             getObjectFromGUID(rg).highlightOn(Color["Yellow"])
             local rd = G.obj.regions[rg]
@@ -5183,7 +5427,19 @@ function startScoring(regions, special, subtitle)
             for p,list in pairs(rd.caballeros) do
               for g,_ in pairs(list) do vr.caballeros[p][g] = true end
             end
-            for i,val in ipairs(rd.scoring) do vr.scoring[i] = vr.scoring[i] + val end
+            --TODO: handle case of one/both region has revolution.
+            if vr.revolution then
+              if rd.revolution then
+                --the region already reversed so just add in order
+                for i,val in ipairs(rd.scoring) do vr.scoring[i] = vr.scoring[i] + val end
+              else
+                --reverse this region when adding to the virtual region
+                local j = 1; for i=3,1,-1 do vr.scoring[i] = vr.scoring[i] + rd.scoring[j]; j = j + 1 end
+              end
+            else
+              --no revolution involved, both regions are added in order
+              for i,val in ipairs(rd.scoring) do vr.scoring[i] = vr.scoring[i] + val end
+            end
           end
           log("Virtual Region");log(vr)
           G.d.IK_alliance.virtual_region = vr
@@ -5251,14 +5507,18 @@ function startScoring(regions, special, subtitle)
           a.undo = {main={},court={},special={},reset=false}; debug("special scoring, secret, clearing undo") --DEBUG
           pdata.disable_reset = true
           pdata.allow_undo = false
-          pdata.undo_button = false
+          -- pdata.undo_button = false
         else
           a.stage = "special"
           pdata.disable_reset = false
           pdata.allow_undo = true
-          pdata.undo_button = true
+          -- pdata.undo_button = true
         end
-        pdata.done_button = true
+
+        pdata.done_button = false
+        pdata.undo_button = false
+
+        -- pdata.done_button = true
         pdata.active = true
         pdata.action_ui = true
         updatePlayerBoardUI(G.d.active_player)
@@ -5353,11 +5613,54 @@ end
 
 -- //////////// User interaction handlers //////////////////
 
+--[[ Handler for I&K 'Revolution' Mobile Scoreboard button click
+--]]
+function scoreboardClick(board, pcol, alt)
+  if env.trace then log("scoreboardClick() "..pcol..", "..board.getGUID()) end
+  if pcol ~= G.d.action.player then log("ignore non action player"); return end --ignore other players
+  --set rotation on the board
+  local rot = board.getRotation()
+  rot.y = rot.y + 180
+  board.setRotation(rot)
+  --reverse MSB scoring for the region
+  local region,prior,rd = nil,false,nil
+  if G.obj.castillo.score_board == board.getGUID() then
+    region = "castillo"
+  else
+    for r,d in pairs(G.obj.regions) do
+      if d.score_board == board.getGUID() then region = r; rd = d; break end
+    end
+  end
+  if rd.revolution then
+    if region == "castillo" then object_UI_setAttribute(C.board,"scoreboard","rotation","0 0 180")
+    else object_UI_setAttribute(region,"scoreboard","rotation","0 0 180") end
+    rd.revolution = nil
+    prior = true
+  else
+    if region == "castillo" then object_UI_setAttribute(C.board,"scoreboard","rotation","0 0 0")
+    else object_UI_setAttribute(region,"scoreboard","rotation","0 0 0") end
+    rd.revolution = true
+  end
+  local tmp = simpleDeepCopy(rd.scoring)
+  rd.scoring[3] = tmp[1]; rd.scoring[2] = tmp[2]; rd.scoring[1] = tmp[3]
+  --remove buttons from boards
+  for g,_ in pairs(G.d.MSB) do getObjectFromGUID(g).clearButtons() end
+  --update undo with board info, region info to reset
+  local u = G.d.action.undo.special["revolution"]
+  assert(u,"ERROR: scoreboardClick() missing undo entry for revolution") --DEBUG
+  u.board = board.getGUID()
+  u.region = region
+  u.prior = prior
+  updateBoardUI()
+  G.d.action.disallow_finished = false
+  G.d.action.stage_status = "Revolution done"
+  updatePlayerBoardUI(pcol)
+end
 --[[ Handler for I&K Veto card button click
 --]]
 function vetoCardClick(card, pcol, alt)
   if env.trace then log("vetoCardClick() "..pcol..", "..card.getGUID()) end
-  if pcol ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players
+  if pcol ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players      --BUG: base game multiple veto holder bug
   if not(G.d.action.allow_veto) then log("vetoCardClick(): action veto not allowed"); return end
   card.clearButtons()
   G.d.confirm_lock = true
@@ -5378,10 +5681,6 @@ function clickFaceUpCard(card, pcol, alt)
   local a = G.d.action
   if a.player ~= pcol then return end --ignore
   if a.IK and a.IK.special.id ~= "remove_face_up" then log("clickFaceUpCard(): invalid action id "..tostring(a.IK.special.id)); return end
-  --disable all card buttons
-  for _,d in pairs(G.d.players) do
-    for g,_ in pairs(d.held_cards) do getObjectFromGUID(g).clearButtons() end
-  end
   --undo the actions for the card being removed using the saved face up card info.
   --NOTE: see undo(): 'remove_face_up'
   local p = card.memo
@@ -5389,7 +5688,14 @@ function clickFaceUpCard(card, pcol, alt)
   local undo = pd.held_cards[card.getGUID()]
   if undo.id == "take6" then
     log("clickFaceUpCard(): special case for removing 'take6' card")
-    G.obj.regions[undo.region].caballero_limit = nil
+    --check for taboo region
+    local rd = G.obj.regions[undo.region]
+    if rd.king or rd.protected or rd.quarantine then
+      log("clickFaceUpCard(): take6 region is taboo")
+      if G.env.verbose then broadcastToColor("Cannot remove card: Region is taboo!", pcol) end
+      return
+    end
+    rd.caballero_limit = nil
     object_UI_setAttribute(undo.region,"limit","active",false)
     a.undo.special["remove_face_up_"..tostring(Time.time)] = {id="remove_face_up",restore_card=true,g=card.getGUID(),p=p,a="take6",v=card.value,r=undo.region}
   elseif undo.id == "reserves" then
@@ -5399,6 +5705,10 @@ function clickFaceUpCard(card, pcol, alt)
     pd.reserves = nil  -- clear target player reserves entry
   else
     log("ERROR: clickFaceUpCard() unexpected card undo id"); return
+  end
+  --disable all card buttons
+  for _,d in pairs(G.d.players) do
+    for g,_ in pairs(d.held_cards) do getObjectFromGUID(g).clearButtons() end
   end
   --trash the card & remove from target player held cards list
   pd.held_cards[card.getGUID()] = nil
@@ -5426,10 +5736,12 @@ function playerBoardClick(board, pcol, alt)
   if G.d.confirm_lock then log("playerBoardClick() confirm locked, ignoring"); return end
   if G.d.action.vetoed then log("playerBoardClick() action vetoed, ignoring"); return end
   local s = G.d.action.special
+  local opp = keyOf(C.player_boards,board.getGUID())
   local pdata = G.d.players[pcol]
   if s.id == "special_scoring" and s.selected then
     log("Selecting an opponent to choose final scoring region from candidates") --DEBUG
     if s.selected_opponent then
+      --clear highlight on any previous selected opponent
       getObjectFromGUID(C.player_boards[s.selected_opponent]).highlightOff()
     end
     s.selected_opponent = keyOf(C.player_boards,board.getGUID())
@@ -5630,10 +5942,9 @@ function onObjectDrop(pcol, obj)
     else snapBack(obj.getGUID()) end
   elseif G.d.phase == "actions" then
     if obj.hasTag("Veto") then
-      --TODO: should this immediately trigger the veto?  Just display dialog for now. confirm_lock should block any actions
       debug(pcol.." dropped Veto card")
       if contains(Player[pcol].getHandObjects(), obj) then debug("in hand"); return end --ignore moving in hand
-      if pcol ~= G.d.veto_player then obj.deal(1,G.d.veto); debug("player not veto player"); return end
+      if pcol ~= G.d.veto_player then obj.deal(1,G.d.veto); debug("player not veto player"); return end             --BUG: base game multiple veto holder bug
       if G.d.phase ~= "actions" then obj.deal(1,pcol); debug("not actions phase") return end
       if not(G.d.action.allow_veto) then obj.deal(1,pcol); debug("action veto not allowed"); return end
       G.d.confirm_lock = true
@@ -5803,11 +6114,11 @@ end
 --]]
 function vetoClick(player, button, id)
   if env.trace then log("vetoClick() "..player.color..", "..tostring(id)) end
-  if player.color ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players
+  if player.color ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players        --BUG: base game multiple veto holder bug
   local ap = G.d.players[G.d.active_player]
   if id == "veto_yes" then
     if G.env.intrigue_king_exp then
-      log("--- TODO: handle vetoClick():veto_yes for I&K exp")
+      log("handle vetoClick():veto_yes for I&K exp")
       local card = getObjectFromGUID(G.d.players[player.color].power_card)
       assert(card, "vetoClick(): could not get I&K veto card object")
       getObjectFromGUID(C.trash).putObject(card)
@@ -5815,12 +6126,11 @@ function vetoClick(player, button, id)
       log("base game vetoClick():veto_yes")
       local card = getObjectFromGUID(G.d.players[player.color].veto_card)
       assert(card, "vetoClick(): could not get veto card object")
-      --TODO: do something with the card?
-      log("--- TODO: vetoClick():veto_yes: do something with the base game veto card")
+      getObjectFromGUID(C.trash).putObject(card)
       G.d.players[player.color].veto_card = nil
-      G.d.veto_round = nil
+      G.d.veto_round = nil                              --BUG: base game multiple veto holder bug
     end
-    G.d.veto_player = nil
+    G.d.veto_player = nil                                                                                       --BUG: base game multiple veto holder bug
     G.d.action.vetoed = true --signal to processAction(), onObjectDrop(), runScoring(), etc. that action vetoed
     G.d.action.waitlist = {}
     G.d.action.waiting = 0
@@ -5830,9 +6140,15 @@ function vetoClick(player, button, id)
     ap.action_ui = true
     ap.disable_reset = true
     G.d.phase = "actions"
-    processAction(G.d.active_player, "finished") --TODO: do this automatically or just disable undo and make active player click finished?
+    if G.d.whirlwind then
+      G.d.whirlwind.vetoed = true
+      startPlayerActions(G.d.active_player)
+      getObjectFromGUID(G.d.whirlwind.region).highlightOff()
+    else
+      processAction(G.d.active_player, "finished") --TODO: do this automatically or just disable undo and make active player click finished?
+      updatePlayerBoardUI(G.d.active_player)
+    end
     UI_setAttribute("veto_pnl","active",false)
-    updatePlayerBoardUI(G.d.active_player)
   elseif id == "veto_no" then
     if G.env.intrigue_king_exp then
       log("--- TODO: vetoClick():veto_no: handle for I&K exp")
@@ -5851,9 +6167,13 @@ function vetoClick(player, button, id)
     UI_setAttribute("veto_pnl","active",false)
     G.d.confirm_lock = false
     G.d.veto_declined = true
-    if G.d.phase == "actions" then
+    if G.d.whirlwind then
+      startPlayerActions(G.d.active_player)
+    elseif G.d.phase == "actions" then
       if G.d.action.special.immediate then
         processAction(ap, "special")
+      elseif G.d.action.special.id == "civil_war" then
+        playerDone(G.d.action.player)
       end
     elseif G.d.phase == "scoring" then
       log("--- TODO: vetoClick():veto_no: anything during scoring?")
@@ -5871,6 +6191,8 @@ function startOptions(player, value, id)
     G.env.verbose = setting
   elseif id == "short" then
     G.env.short_game = setting
+  elseif id == "card_tips" then
+    G.env.card_tooltips = setting
   elseif id == "intrigue_king" then
     G.env.intrigue_king_exp = setting
   elseif id == "grandissimo" or id == "inquisitor_colonies" then
@@ -6222,11 +6544,11 @@ function updatePlayerBoardUI(pcol)
   end
   object_UI_setClass(board, pcol.."_undo","")
   object_UI_setAttribute(board, pcol.."_done","active",pdata.done_button);object_UI_setClass(board, pcol.."_done","")
-  if pdata.disk_button then
-    object_UI_setClass(board, "pointer","diskButton")
-  else
-    object_UI_setClass(board, "pointer","") --BUG: doesn't work, workaround: ignore clicks in diskClick()
-  end
+  -- if pdata.disk_button then
+  --   object_UI_setClass(board, "pointer","diskButton")
+  -- else
+  --   object_UI_setClass(board, "pointer","") --BUG: doesn't work, workaround: ignore clicks in diskClick()
+  -- end
   if pdata.show_stage then
     if pdata.espionage then
       object_UI_setAttribute(board,"stage_title_txt","text","Move to any region")
@@ -6421,6 +6743,9 @@ function onObjectLeaveContainer(cont, obj)
       obj.addTag("PowerCard")
       obj.memo = pcol
       obj.addContextMenuItem("Sort Hand", sortHand)
+      if G.env.card_tooltips then
+        if power_card_tips[obj.value] then obj.setDescription(power_card_tips[obj.value]) end
+      end
       table.insert(pdata.power_cards, obj.getGUID())
       object_UI_setAttribute(C.player_boards[pcol],"card_select_txt","text","Cards: "..tostring(#pdata.power_cards))
       if #pdata.power_cards > 13 then
@@ -6435,6 +6760,7 @@ function onObjectLeaveContainer(cont, obj)
         updatePlayerBoardUI(pcol)
       end
       obj.deal(1,pcol)
+      Wait.condition(function() sortHand(pcol) end,function() return obj.resting end,2)
     else
       log("ERROR: onObjectLeaveContainer() invalid phase to draw cards.  TODO: handle this better")
       return
@@ -6653,6 +6979,7 @@ end
   if 2 players, only return the first scoring level.
   All tied players drop to next lower level of score.
 ]]
+--TODO: handle a revolution when also in an alliance
 function scoreRegion(region_guid)
   if env.trace then log("scoreRegion() "..tostring(region_guid)) end
   local region = nil
@@ -6667,15 +6994,24 @@ function scoreRegion(region_guid)
   --rank players
   local rank={}
   for p,d in pairs(region.caballeros) do
-    local new = {player=p,val=sizeOf(d)}
-    if #rank == 0 then table.insert(rank,{new})
-    else
-      local f=false
-      for i,e in ipairs(rank) do
-        if new.val > e[1].val then table.insert(rank,i,{new}); f=true; break
-        elseif new.val == e[1].val then table.insert(e,new); f=true; break end
+    if contains(G.d.player_order,p) then
+      local new = {player=p,val=sizeOf(d)}
+      if #rank == 0 then table.insert(rank,{new})
+      else
+        local f=false
+        for i,e in ipairs(rank) do
+          if region.revolution then
+            --lowest to highest
+            if new.val < e[1].val then table.insert(rank,i,{new}); f=true; break
+            elseif new.val == e[1].val then table.insert(e,new); f=true; break end
+          else
+            --highest to lowest
+            if new.val > e[1].val then table.insert(rank,i,{new}); f=true; break
+            elseif new.val == e[1].val then table.insert(e,new); f=true; break end
+          end
+        end
+        if not(f) then table.insert(rank,{new}) end
       end
-      if not(f) then table.insert(rank,{new}) end
     end
   end
   -- log("Player rank is: ");log(rank) --DEBUG
@@ -6689,7 +7025,15 @@ function scoreRegion(region_guid)
   while index <= max do
     if not(rank[index]) then break end
     if sizeOf(rank[index]) == 1 then
-      local score = region.scoring[index]
+      local score = 0
+      if region.revolution then
+        --TODO: TESTOMG use reverse scoring
+        local i = 3 - (index - 1)
+        score = region.scoring[i]
+        -- log("REVERSE SCORING: index = "..tostring(index)..", i = "..tostring(i)..", score = "..tostring(score))
+      else
+        score = region.scoring[index]
+      end
       if rank[index][1].val > 0 then
         if index == 1 then
           --determine Home region and/or King bonus
@@ -6706,7 +7050,17 @@ function scoreRegion(region_guid)
         local new = {}
         table.insert(result,{}) --empty row for the tie?
         for _,e in ipairs(rank[index]) do
-          local score = region.scoring[index+1]
+          local score = 0
+          if region.revolution then
+            --TODO: TESTING use reverse scoring
+            local i = 3 - index
+            if i == 0 then score = 0
+            else score = region.scoring[i] end
+            log("REVERSE SCORING: index = "..tostring(index)..", i = "..tostring(i)..", score = "..tostring(score))
+          else
+            if index + 1 > 3 then score = 0
+            else score = region.scoring[index+1] end
+          end
           if region.double_scoring then score = score * 2 end
           if e.val > 0 then
             table.insert(new,{player=e.player,caballeros=e.val,score=score,})
@@ -6801,41 +7155,41 @@ function w2l(list, guid, format)
   Notes.setNotes(s)
 end
 
-mb_color = Color.fromString("White")
-function colorPick(pcol)
-  assert(pcol,"colorPick(player_color): player_color is required")
-  Player[pcol].showColorDialog(mb_color,
-    function (c, p)
-      mb_color = c
-      local str = "rgba("..tostring(c.r)..","..tostring(c.g)..","..tostring(c.b)..","..tostring(c.a)..")"
-      log(str)
-      Notes.setNotes(str)
-      getObjectFromGUID("719679").UI.setAttribute("scoreboard_image","color",str)
-    end
-  )
-end
+-- mb_color = Color.fromString("White")
+-- function colorPick(pcol)
+--   assert(pcol,"colorPick(player_color): player_color is required")
+--   Player[pcol].showColorDialog(mb_color,
+--     function (c, p)
+--       mb_color = c
+--       local str = "rgba("..tostring(c.r)..","..tostring(c.g)..","..tostring(c.b)..","..tostring(c.a)..")"
+--       log(str)
+--       Notes.setNotes(str)
+--       getObjectFromGUID("719679").UI.setAttribute("scoreboard_image","color",str)
+--     end
+--   )
+-- end
 
-function cardcheck()
-  for i=1,4 do
-    log("stack "..tostring(i))
-    local stack = getObjectFromGUID(C.stacks[i])
-    for _,c in ipairs(stack.getObjects()) do
-      if not(cards[c.guid]) then
-        log("Card "..c.guid.." not defined")
-        stack.takeObject({guid=c.guid})
-      end
-    end
-  end
-end
+-- function cardcheck()
+--   for i=1,4 do
+--     log("stack "..tostring(i))
+--     local stack = getObjectFromGUID(C.stacks[i])
+--     for _,c in ipairs(stack.getObjects()) do
+--       if not(cards[c.guid]) then
+--         log("Card "..c.guid.." not defined")
+--         stack.takeObject({guid=c.guid})
+--       end
+--     end
+--   end
+-- end
 
-g_vals = {10,15,20,25,30,35,40,50,60,63,66,70,75,80,90,93,95,100,110,120,125,130,135,140,145,150,155,160,170,180,0}
-function setDeckValues(g)
-  local d = getObjectFromGUID(g)
-  assert(d, "Unable to get deck object for guid "..tostring(g))
-  local data = d.getData()
-  assert(#data.ContainedObjects == #g_vals, "Deck size does not match #g_vals")
-  for i,e in ipairs(data.ContainedObjects) do e.Value = g_vals[i] end
-  local pos = d.getPosition()
-  pos.x = pos.x - 4
-  spawnObjectData({data=data,position=pos})
-end
+-- g_vals = {10,15,20,25,30,35,40,50,60,63,66,70,75,80,90,93,95,100,110,120,125,130,135,140,145,150,155,160,170,180,0}
+-- function setDeckValues(g)
+--   local d = getObjectFromGUID(g)
+--   assert(d, "Unable to get deck object for guid "..tostring(g))
+--   local data = d.getData()
+--   assert(#data.ContainedObjects == #g_vals, "Deck size does not match #g_vals")
+--   for i,e in ipairs(data.ContainedObjects) do e.Value = g_vals[i] end
+--   local pos = d.getPosition()
+--   pos.x = pos.x - 4
+--   spawnObjectData({data=data,position=pos})
+-- end
