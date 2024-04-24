@@ -76,6 +76,15 @@ C.veto_card_button={
   color={r=0.7,g=0.3,b=0,a=1},
   hover_color={r=1,g=0.4,b=0,a=1},
 }
+C.veto_decals={ --TODO: add Global code to set decal on 2nd round of holding a veto card (base game)
+  {
+    name = "Yellow Border",
+    url = "http://cloud-3.steamusercontent.com/ugc/2020471757935642565/9B9D581763F86C464E7BE2DE96727FC89DA86A92/",
+    position = {x=0,y=0.4,z=0,},
+    rotation = {x=90,y=270,z=0,},
+    scale = {x=3.5,y=2.5,z=15,},
+  },
+}
 --TODO: cleanup definiton. Rot={0,0,0}, remove unnecessary default data
 C.grande_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"a43cfd","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Grande","Snap":true,"Sticky":true,"Tags":["Grande"],"Tooltip":true,"Transform":{"posX":-40.3152770996094,"posY":1.46000003814697,"posZ":-19.7744293212891,"rotX":3.77321953237697E-07,"rotY":-4.34147695571596E-09,"rotZ":-7.94435166540097E-08,"scaleX":1,"scaleY":1,"scaleZ":1},"Value":0,"XmlUI":""}'
 C.caballero_json='{"AltLookAngle":{"x":0,"y":0,"z":0},"Autoraise":true,"ColorDiffuse":{"a":1,"b":0.5,"g":0.5,"r":0.5},"Description":"","DragSelectable":true,"GMNotes":"","Grid":true,"GridProjection":false,"GUID":"222ecb","Hands":false,"HideWhenFaceDown":false,"IgnoreFoW":false,"LayoutGroupSortIndex":0,"Locked":false,"LuaScript":"","LuaScriptState":"","MeasureMovement":false,"Name":"BlockSquare","Nickname":"Caballero","Snap":true,"Sticky":true,"Tags":["Caballero"],"Tooltip":true,"Transform":{"posX":-40.3260803222656,"posY":1.21000027656555,"posZ":-21.2416534423828,"rotX":-5.58641488623834E-07,"rotY":-1.5730960512883E-05,"rotZ":-3.4076799693139E-07,"scaleX":0.500000417232513,"scaleY":0.500000417232513,"scaleZ":0.500000417232513},"Value":0,"XmlUI":""}'

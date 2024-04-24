@@ -11,9 +11,6 @@
 
   -MVP TODO items remaining:
 
-  -BUG: (base game) if more than one player has a veto card, G.d.veto_player is overwritten by second player to pick Veto card.
-        All checks on it are broken.  Need a list?  Only in base game.
-        G.d.veto_round is also overwritten (broken) as well in same way.
   -BUG: (I&K) Bridge: need to return 1 Caballero from court to provinces. Don't allow action if court empty?  Return to court when bridge moved.
   -BUG: (I&K) Bridge: no undo implemented yet.
   -BUG: (I&K) Done button should warn if Caballero action not used after finishing Special Action.
@@ -63,7 +60,7 @@ env.use_saved_data = true -- set false to refresh saved data in game save during
 ---------------------------
 -- NOTE: Disable env.test_players for live game, use in DEVELOPMENT only
 -- env.test_players = {"Blue","Red","Green","Purple","Yellow"}
-env.test_players = {"Green","Purple"}
+-- env.test_players = {"Red","Green","Purple"}
 ----------------------------
 env.in_dev = false --leave some objects interactable for dev purposes.
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
@@ -261,6 +258,12 @@ function restoreGame()
       for _,o in ipairs(Player[c].getHandObjects()) do
         o.setHiddenFrom(opp)
         o.addContextMenuItem("Sort Hand", sortHand)
+      end
+      --Check for any player played the veto card
+      local pd = G.d.players[c]
+      if power_cards[pd.power_bid].special.id == "veto" then
+        local card = getObjectFromGUID(pd.power_card)
+        card.createButton(C.veto_card_button)
       end
     end
     if G.d.IK_bridge then
@@ -808,17 +811,25 @@ function startBidPhase()
     G.d.status.show = true
     updateStatusUI(G.d.status)
     -- Check to see if veto card has expired
-    if G.env.intrigue_king_exp then
-      log("--- startBidPhase(): Remove I&K Veto cards at start of next round")
-      if G.d.veto_player then G.d.veto_player = nil end
-    else
-      if G.d.veto_round and G.d.round - G.d.veto_round >= 2 then
-        local card = getObjectFromGUID(G.d.players[G.d.veto_player].veto_card)  --BUG: base game multiple veto holder bug
-        assert(card, "startBidPhase(): unable to locate veto card object")
-        getObjectFromGUID(C.trash).putObject(card)
-        G.d.players[G.d.veto_player].veto_card = nil
-        G.d.veto_player = nil
-        G.d.veto_round = nil
+    for p,pd in pairs(G.d.players) do
+      if pd.veto_card then
+        if G.env.intrigue_king_exp then
+          log("--- startBidPhase(): clear I&K Veto card for "..p.." at start of round")
+          pd.veto_card = nil
+        else
+          local card = getObjectFromGUID(pd.veto_card)
+          assert(card, "startBidPhase(): unable to locate veto card object")
+          pd.veto_rounds = pd.veto_rounds + 1
+          if pd.veto_rounds >= 2 then
+            log("--- startBidPhase(): clear base game Veto card for "..p.." at start of round")
+            getObjectFromGUID(C.trash).putObject(card)
+            pd.veto_card = nil
+            pd.veto_rounds = nil
+          else
+            --add warning decal for held veto card, will expire at end of round
+            card.setDecals(C.veto_decals)
+          end
+        end
       end
     end
     -- Reveal Action Cards
@@ -923,6 +934,7 @@ function resetAction()
     G.d.action.undo.IK_king = {}
     G.d.action.undo.IK_intrigue = {}
   end
+  for p,pd in pairs(G.d.players) do pd.veto_declined = nil end
 end
 --[[ Setup and begin the action phase
 ]]
@@ -948,11 +960,11 @@ function startActionPhase()
       end
       --Check for any player played the veto card
       if power_cards[pd.power_bid].special.id == "veto" then
-        G.d.veto_player = c
+        pd.veto_card = pd.power_card
         pd.IK_special_action = false
         --enable veto button on the card
         local card = getObjectFromGUID(pd.power_card)
-        card.createButton(C.veto_card_button)          --TODO: move this to processAction():special with check for veto allowed
+        card.createButton(C.veto_card_button)  --TODO: move this to processAction():special (also change this in restore game)
       end
     end
     G.d.player_order = temp
@@ -1066,35 +1078,28 @@ function startActionPhase()
   G.d.status.show = true
   updateStatusUI(G.d.status)
 end
---[[ Set up for a player actions turn ]]
+--[[ Set up for a player's actions.
+  NOTE: this get's called differently between base game and I&K expansion.
+  it's triggered by selecting an action card in the base game.
+  In I&K expansion action cards are already selected by all players so it's called in turn order.
+--]]
 function startPlayerActions(pcol)
   if env.trace then log("startPlayerActions() "..tostring(pcol)) end
   local pdata = G.d.players[pcol]
   resetAction()
   local a = G.d.action
-  if G.d.whirlwind and G.d.whirlwind.player == pcol then
+  if G.d.whirlwind and G.d.whirlwind.player == pcol then  --HACK: special case for the I&K Whirlwind (Hurricane) card
     local w = G.d.whirlwind
-    log("--- handle whirlwind at start of player turn")
+    log("---startPlayerActions(): handle I&K whirlwind at start of player turn")
     local region = getObjectFromGUID(w.region)
     if G.env.verbose then broadcastToAll(G.obj.regions[w.region].name.." is hit with a Whirlwind") end
-    if G.d.veto_player and not(G.d.veto_declined or a.vetoed) then
-      log("--- TODO: handle wait on veto check for whirlwind result")
-      --show veto dialog
-      G.d.veto_declined = false
-      G.d.confirm_lock = true
-      UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
-      UI_setAttribute("veto_player_txt","text",G.d.veto_player)
-      UI_setAttribute("veto_msg_txt","text","Veto _Whirlwind_?")
-      UI_setAttribute("veto_pnl","hidden","")
-      UI_setAttribute("veto_pnl","response_action","startPlayerActions")
-      getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
-      UI_setAttribute("veto_pnl","active",true)
+    if vetoCheck(pcol) then
       region.highlightOn(Color["Yellow"])
       return
     else
       if not(G.d.whirlwind.vetoed) then
         region.highlightOn(Color["Yellow"],2)
-        log("--- immediate whirlwind result")
+        log("--- startPlayerActions(): immediate whirlwind result")
         local rd = G.obj.regions[w.region]
         for p,list in pairs(rd.caballeros) do
           if p ~= w.player and sizeOf(list) > 0 then
@@ -1110,7 +1115,7 @@ function startPlayerActions(pcol)
           end
         end
       else
-        log("--- TODO: anything to do other than skipping return cubes if Whirlwind is vetoed?")
+        log("--- TODO: startPlayerActions(): anything to do other than skipping return cubes if I&K Whirlwind is vetoed?")
       end
     end
   end
@@ -1160,7 +1165,7 @@ function startPlayerActions(pcol)
           pdata.IK_intrigue_action = true
         end
       elseif (pdata.IK_king_card or pdata.IK_intrigue_card) and #G.d.player_order <= 3 then
-        if G.d.veto_player then --hasn't used it yet, allow king or intrigue as appropriate
+        if pdata.veto_card then  --hasn't used it yet, allow king or intrigue as appropriate
           if pdata.IK_king_card then
             a.IK.king = simpleDeepCopy(IK_king)
             pdata.IK_king_action = true
@@ -1205,15 +1210,12 @@ function startPlayerActions(pcol)
     assert(cinfo, "startPlayerActions() could not locate card info") --DEBUG
     local card = getObjectFromGUID(pdata.action_card)
     assert(card, "startPlayerActions() could not locate card object") --DEBUG
+    a.undo.main[card.getGUID()] = {id="select_card",g=card.getGUID(),pcol=pcol,snap=card.getPosition()}
     a.guid = card.getGUID()
     a.name = cinfo.name
     a.court = cinfo.court
-    a.undo.main[card.getGUID()] = {id="select_card",g=card.getGUID(),pcol=pcol,snap=card.getPosition()} --TODO: move to cardClick()?
-    card.clearButtons() --TODO: move to cardClick()?
     if cinfo.special.id == "veto" then
-      log("handle base game Veto card")
-      UI_setAttribute("veto_player_pnl","color",pcol)
-      UI_setAttribute("veto_player_txt","text",pcol)
+      log("startPlayerActions(): handle base game Veto card")
       a.description = "Veto card\nCourt is only action"
       a.status.info = "Active Player\nHold Veto card in hand\nCourt is only action"
       a.special_completed = true
@@ -1221,8 +1223,7 @@ function startPlayerActions(pcol)
       card.deal(1,pcol)
       pdata.veto_card = card.getGUID()
       table.remove(G.d.action_cards,indexOf(G.d.action_cards,card.getGUID()))
-      G.d.veto_player = pcol                                                      --BUG: base game multiple veto holder bug
-      G.d.veto_round = G.d.round
+      pdata.veto_rounds = 0
     else
       a.status.info = a.status.info..cinfo.name
       a.special = simpleDeepCopy(cinfo.special)
@@ -1458,6 +1459,7 @@ function processAction(pcol, opt)
       G.d.IK_alliance.active = false
     end
     --reset player stuffs
+    for p,pd in pairs(G.d.players) do pd.veto_declined = nil end
     if pdata.allow_undo then pdata.undo_button = true else pdata.undo_button = false end
     pdata.done_button = true
     setLockCourt(pcol, true)
@@ -1468,6 +1470,7 @@ function processAction(pcol, opt)
     a.waiting = 0
     a.status.waitlist = {}
     updateStatusUI(G.d.status)
+    a.allow_veto = false
   elseif opt == "reset" then
     if a.stage == "waiting" then --TODO: clean up this mess! move stuff to an undo.special entries TODO: conflict with undo I&K sequencing?
       log("processAction(): reset special while waiting")
@@ -1540,6 +1543,8 @@ function processAction(pcol, opt)
       end
       pdata.undo_button = true
       pdata.done_button = true
+      for p,pd in pairs(G.d.players) do pd.veto_declined = nil end
+      a.allow_veto = false
     end
     a.stage = "main"
     a.description = "Choose an action"
@@ -1573,28 +1578,13 @@ function doSpecial(pcol)
   local pdata = G.d.players[pcol]
   local a = G.d.action
   local special = a.special
-  if special.immediate and special.id ~= "special_scoring" then
-    if G.d.veto_player and G.d.veto_player ~= pcol then                                     --BUG: base game multiple veto holder bug
-      if not(G.d.veto_declined) then
-        log("---TESTING: activate veto check for an immediate special action")
-        G.d.confirm_lock = true
-        UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
-        UI_setAttribute("veto_player_txt","text",G.d.veto_player)
-        UI_setAttribute("veto_msg_txt","text","Veto _"..a.name.."_?")
-        UI_setAttribute("veto_pnl","response_action","processAction")
-        if G.env.intrigue_king_exp then
-          UI_setAttribute("veto_pnl","hidden","")
-          getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
-        else UI_setAttribute("veto_pnl","hidden","re_deal") end
-        UI_setAttribute("veto_pnl","active",true)
-        return
-      else
-        log("---TESTING: continue with immediate special action after veto declined")
-        G.d.veto_declined = nil
-      end
-    end
-  end
   a.stage = "special"
+  if special.immediate and special.id ~= "special_scoring" then
+    updatePlayerBoardUI(pcol)
+    if checkVeto(pcol) then return end
+    a.allow_veto = false
+  end
+  a.allow_veto = true
   local desc = special.desc
   if not(desc) then desc = "Special Action" end
   a.stage_status = desc
@@ -1642,7 +1632,7 @@ function doSpecial(pcol)
         updateStatusUI(a.status)
         a.stage = "waiting"
         a.stage_status = "Waiting on opp"
-        a.allow_veto = true
+        -- a.allow_veto = true
         a.waiting = #a.waitlist
       else
         log("WARN: ret2provinces: no opponents have Caballeros elegible to return")
@@ -1716,7 +1706,7 @@ function doSpecial(pcol)
   elseif special.id == "grande" then
     log("move Grande")
     a.stage_status = "Move your Grande"
-    a.allow_veto = true
+    -- a.allow_veto = true
     a.status.waitlist = {}
     a.status.info = a.name..":\n"..a.description
     updateStatusUI(a.status)
@@ -1769,7 +1759,7 @@ function doSpecial(pcol)
       a.stage = "waiting"
       a.status = {waitlist={},}
       a.status.info = a.name.."\n"..special.desc
-      a.allow_veto = true
+      -- a.allow_veto = true
       local undo_ok = false
       if special.players == "all" then a.waitlist = simpleDeepCopy(G.d.player_order)
       elseif special.players == "active" then a.waitlist={G.d.active_player}; undo_ok = true end
@@ -1843,7 +1833,7 @@ function doSpecial(pcol)
       a.status.info = a.name.."\nSelect 3 possible regions\nOpp chooses 1 to score"
       a.stage_status = "Click on a region"
       a.special.selecting_regions = true
-      a.allow_veto = true
+      -- a.allow_veto = true
       --enable buttons on regions
       for g,_ in pairs(G.obj.regions) do getObjectFromGUID(g).createButton(C.region_button) end
       a.special.region_candidates = {}
@@ -1892,7 +1882,7 @@ function doSpecial(pcol)
       table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
       a.waitlist = {pcol}
       a.waiting = 1
-      a.allow_veto = true
+      -- a.allow_veto = true
       pdata.active = true
       pdata.waiting = true
       pdata.show_disk = true
@@ -1909,7 +1899,7 @@ function doSpecial(pcol)
     a.undo.special["special_scoring_"..tostring(Time.time)] = {id="scoring_window",hide=true}
   elseif Split(special.id,"_")[1] == "move" then
     log("move special action")
-    a.allow_veto = true
+    -- a.allow_veto = true
     if special.each then a.caballeros_moved = {Blue=0,Red=0,Green=0,Purple=0,Yellow=0} end
     if special.total then a.total_moved = 0; a.stage_status = "Moved 0 / "..tostring(special.total)
     elseif special.max then a.stage_status = "Moved 0 / "..tostring(special.max)
@@ -1988,7 +1978,7 @@ function doSpecial(pcol)
   elseif special.id == "king_returns" then
     log("setup king returns")
     a.stage = "waiting"
-    a.allow_veto = true
+    -- a.allow_veto = true
     a.stage_status = "Opp 3 -> Prov"
     a.status = {}
     a.status.info = "Opponents ret 3 to Provinces\nfrom Court or Regions\nDrop on player board"
@@ -2023,7 +2013,7 @@ function doSpecial(pcol)
     updatePlayerBoardUI(a.player)
   elseif special.id == "king" then
     log("move the king")
-    a.allow_veto = true
+    -- a.allow_veto = true
     a.status.waitlist = {}
     a.status.info = a.name..":\n"..a.description
     updateStatusUI(a.status)
@@ -2084,7 +2074,7 @@ function doSpecial(pcol)
     updatePlayerBoardUI(pcol)
   elseif special.id == "IK_castillo" then
     log("setup I&K Castillo action")
-    a.allow_veto = true
+    -- a.allow_veto = true
     a.total_moved = 0
     local max, count = 0, a.special.count
     for p,pd in pairs(G.d.players) do
@@ -2132,7 +2122,7 @@ function doSpecial(pcol)
     a.undo.special["alliance"] = nil --should not be one, but clear just in case
     a.status.waitlist = {}
     a.status.info = a.name..":\n"..a.description
-    a.allow_veto = true
+    -- a.allow_veto = true
     updateStatusUI(a.status)
     pdata.done_button = false
     pdata.undo_button = false
@@ -2238,7 +2228,7 @@ function doSpecial(pcol)
     a.status.info = a.name..":\n"..a.description
     a.waitlist = {pcol}
     a.waiting = 1
-    a.allow_veto = true
+    -- a.allow_veto = true
     updateStatusUI(a.status)
     pdata.undo_button = false
     pdata.done_button = true
@@ -2391,7 +2381,7 @@ function doSpecial(pcol)
     end
     for _,p in pairs(remove) do table.remove(a.waitlist,indexOf(a.waitlist,p)) end
     if #a.waitlist > 0 then
-      a.allow_veto = true
+      -- a.allow_veto = true
       a.status.show = true
       updateStatusUI(a.status)
       a.waiting = #a.waitlist
@@ -2431,7 +2421,7 @@ function doSpecial(pcol)
     log("set up civil war region selection")
     if #pdata.court > 0 then
       a.stage = "waiting"
-      a.allow_veto = true
+      -- a.allow_veto = true
       a.status.waitlist={}
       a.status.info = a.name.."\n"..a.description
       table.insert(a.status.waitlist,{player_color=pcol,player_status="Deciding"})
@@ -2470,7 +2460,7 @@ function doSpecial(pcol)
     end
   elseif special.id == "revolution" then
     log("set up special action revolution")
-    a.allow_veto = true
+    -- a.allow_veto = true
     --enable a button on all mobile scoreboards in play (not if flipped to Quarantine)
     local none = true
     for g,msb in pairs(G.d.MSB) do
@@ -3857,9 +3847,8 @@ function playerDone(pcol)
             updateBoardUI()
             r.protected = true
             object_UI_setAttribute(region,"protected","active",true)
-          elseif a.special.id == "relocate" then
+          elseif a.special.id == "relocate" then                              --TODO: implement
             debug("--- TODO: all players done for action relocate")
-
           elseif a.special.id == "moving_day" then
             debug("all players done for action moving_day")
             if a.special.disk then
@@ -3909,26 +3898,13 @@ function playerDone(pcol)
           elseif a.special.id == "civil_war" then
             debug("player done selecting region for civil_war")
             local region = getObjectFromGUID(C.region_guids[pdata.selected_region])
-
-            --TODO: a veto check here???
-            if G.d.veto_player and not(G.d.veto_declined) then
-              debug("--- TODO: do veto check before executing civil_war on selected region.")
-              G.d.confirm_lock = true
-              UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
-              UI_setAttribute("veto_player_txt","text",G.d.veto_player)
-              UI_setAttribute("veto_msg_txt","text","Veto _"..a.name.."_?")
-              UI_setAttribute("veto_pnl","response_action","processAction")
-              if G.env.intrigue_king_exp then
-                UI_setAttribute("veto_pnl","hidden","")
-                getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
-              else UI_setAttribute("veto_pnl","hidden","re_deal") end
-              UI_setAttribute("veto_pnl","active",true)
+            debug("---veto check before executing civil_war on selected region.")
+            if vetoCheck(pcol) then
               region.highlightOn(Color["Yellow"])
               return
             else
               region.highlightOn(Color["Yellow"],2)
             end
-
             --return 1 caballero from active player from Court to Provinces
             local g = pdata.court[#pdata.court]
             a.undo.special[g] = {id="civil_war", color=pcol, guid=g, snap=getObjectFromGUID(g).getPosition()}
@@ -4843,7 +4819,6 @@ function startScoring(regions, special, subtitle)
     if env.trace then log("coroutine runScoring() starting") end
     local s = G.d.scoring
     s.running = true
-    -- local backup = s.backup
     local marker = getObjectFromGUID(C.round_marker)
     G.d.phase = "scoring"
     --///////////////////// local functions ////////////////////////
@@ -4962,7 +4937,6 @@ function startScoring(regions, special, subtitle)
           if s.special then G.d.action.undo.special[tostring(Time.time).."_"..tostring(i)] = {id="score",pcol=d.player,points=d.score} end
           setScoringMarkerPosition(d.player)
         elseif #e > 1 then
-          local s = "Players"
           for _,d in ipairs(e) do
             G.d.players[d.player].score = G.d.players[d.player].score + d.score
             if not(s.summary[d.player]) then s.summary[d.player] = d.score
@@ -4980,6 +4954,7 @@ function startScoring(regions, special, subtitle)
         end
       end
     end
+    --////////////////////// The scoring phases ////////////////////
     if s.phase == "not_started" then  -- //////////// Start the scoring /////////////
       debug("set up a new scoring data structure")
       -- clear active player buttons
@@ -5034,36 +5009,23 @@ function startScoring(regions, special, subtitle)
       end
     end
     if s.phase == "veto_check" then -- //////////// Veto check for a special scoring //////////
-      if G.d.veto_player then                                                         --BUG: base game multiple veto holder bug
-        if s.restarting then
-          s.restarting = false
-          debug("skip veto_check setup, goto wait loop")
-        else
-          log("--- TESTING: runScoring(): veto check")
-          s.info.veto_check = true --triggers display veto message in scoring UI
-          G.d.confirm_lock = true
-          UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
-          UI_setAttribute("veto_player_txt","text",G.d.veto_player)
-          UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
-          if G.env.intrigue_king_exp then
-            UI_setAttribute("veto_pnl","hidden","")
-            getObjectFromGUID(G.d.players[G.d.veto_player].power_card).clearButtons()
-          else UI_setAttribute("veto_pnl","hidden","re_deal") end
-          UI_setAttribute("veto_pnl","active",true)
-          UI_setAttribute("scoring_veto_msg_txt","text","Waiting on Veto Player to decide")
-        end
-        while G.d.confirm_lock do coroutine.yield(0) end
-        if G.d.action.vetoed then
-          log("Special scoring canceled by veto")
-          UI_setAttribute("scoring_pnl","active",false)
-          log("exit runScoring() coro")
-          return(1)
-        else
-          s.info.veto_check = false
-          updateUI(s.info)
-        end
+      if s.restarting then
+        s.restarting = false
+        debug("special scoring: skip veto_check, goto coro wait loop")
+      else
+        s.info.veto_check = true --triggers display veto message in scoring UI
+        updateUI(s.info)
+        checkVeto(G.d.action.player)  --no need to handle return condition, fall through to coro wait loop
+      end
+      while G.d.confirm_lock do coroutine.yield(0) end
+      if G.d.action.vetoed then
+        log("Special scoring canceled by veto")
+        UI_setAttribute("scoring_pnl","active",false)
+        log("exit runScoring() coro")
+        return(1)
       else
         s.info.veto_check = false
+        updateUI(s.info)
       end
       if #s.reserves > 0 then
         s.phase = "reserves_selection"
@@ -5660,12 +5622,12 @@ end
 --]]
 function vetoCardClick(card, pcol, alt)
   if env.trace then log("vetoCardClick() "..pcol..", "..card.getGUID()) end
-  if pcol ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players      --BUG: base game multiple veto holder bug
+  if card.memo ~= pcol then log("ignore non veto card owner clicks"); return end --ignore other players
   if not(G.d.action.allow_veto) then log("vetoCardClick(): action veto not allowed"); return end
   card.clearButtons()
   G.d.confirm_lock = true
-  UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
-  UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+  UI_setAttribute("veto_player_pnl","color",pcol)
+  UI_setAttribute("veto_player_txt","text",pcol)
   UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
   UI_setAttribute("veto_pnl","hidden","") --no redeal for I&K veto card
   UI_setAttribute("veto_pnl","active",true)
@@ -5898,7 +5860,13 @@ function onObjectDrop(pcol, obj)
   if not(obj.hasTag("Caballero") or obj.hasTag("Grande") or obj.hasTag("King") or obj.hasTag("ScoreBoard") or
     obj.hasTag("Veto") or obj.hasTag("PowerCard")) then debug("WARN: object "..obj.getGUID().." not supported"); return end
   --Don't allow anything during a confirm dialog
-  if G.d.confirm_lock then snapBack(obj.getGUID()); return end
+  if G.d.confirm_lock then
+    if G.obj.snaps[obj.getGUID()] then snapBack(obj.getGUID()); return
+    elseif obj.hasTag("Veto") then obj.deal(1,obj.memo); return
+    else
+      assert(false, "ERROR: onObjectDrop() unable to handle object with confirm_lock set")
+    end
+  end
   --Where is this being dropped?
   local region,board,castillo = nil,nil,nil
   local pos = Player[pcol].getPointerPosition();pos.y = 0
@@ -5943,13 +5911,13 @@ function onObjectDrop(pcol, obj)
   elseif G.d.phase == "actions" then
     if obj.hasTag("Veto") then
       debug(pcol.." dropped Veto card")
-      if contains(Player[pcol].getHandObjects(), obj) then debug("in hand"); return end --ignore moving in hand
-      if pcol ~= G.d.veto_player then obj.deal(1,G.d.veto); debug("player not veto player"); return end             --BUG: base game multiple veto holder bug
+      if pcol ~= obj.memo then obj.deal(1,obj.memo); debug("player not veto card owner"); return end
+      if contains(Player[pcol].getHandObjects(), obj) then debug("dropped in hand"); return end --ignore moving in hand
       if G.d.phase ~= "actions" then obj.deal(1,pcol); debug("not actions phase") return end
       if not(G.d.action.allow_veto) then obj.deal(1,pcol); debug("action veto not allowed"); return end
       G.d.confirm_lock = true
-      UI_setAttribute("veto_player_pnl","color",G.d.veto_player)
-      UI_setAttribute("veto_player_txt","text",G.d.veto_player)
+      UI_setAttribute("veto_player_pnl","color",pcol)
+      UI_setAttribute("veto_player_txt","text",pcol)
       UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
       UI_setAttribute("veto_pnl","hidden","re_deal")
       UI_setAttribute("veto_pnl","active",true)
@@ -6111,10 +6079,14 @@ function onObjectDrop(pcol, obj)
   end
 end
 --[[ Handler for the Veto dialog
+    NOTE: Several special cases, especially for cards triggering actions outside of the "special action" stage (Whirlwind etc.)
+    NOTE: Decline behaves differently if happening during a scoring.
 --]]
 function vetoClick(player, button, id)
   if env.trace then log("vetoClick() "..player.color..", "..tostring(id)) end
-  if player.color ~= G.d.veto_player then log("ignore non veto player"); return end --ignore other players        --BUG: base game multiple veto holder bug
+  local pcol = UI.getAttribute("veto_player_txt","text")
+  assert(pcol and contains(G.d.player_order,pcol), "vetoClick(): invalid player from dialog "..tostring(pcol))
+  if pcol ~= player.color then log("ignore non veto player"); return end --ignore other players
   local ap = G.d.players[G.d.active_player]
   if id == "veto_yes" then
     if G.env.intrigue_king_exp then
@@ -6127,14 +6099,13 @@ function vetoClick(player, button, id)
       local card = getObjectFromGUID(G.d.players[player.color].veto_card)
       assert(card, "vetoClick(): could not get veto card object")
       getObjectFromGUID(C.trash).putObject(card)
-      G.d.players[player.color].veto_card = nil
-      G.d.veto_round = nil                              --BUG: base game multiple veto holder bug
     end
-    G.d.veto_player = nil                                                                                       --BUG: base game multiple veto holder bug
+    G.d.players[player.color].veto_card = nil
+    G.d.players[player.color].veto_rounds = nil
     G.d.action.vetoed = true --signal to processAction(), onObjectDrop(), runScoring(), etc. that action vetoed
     G.d.action.waitlist = {}
     G.d.action.waiting = 0
-    G.d.confirm_lock = false --TODO: before or after processAction()??
+    G.d.confirm_lock = false
     ap.active = true
     ap.allow_undo = false
     ap.action_ui = true
@@ -6165,19 +6136,35 @@ function vetoClick(player, button, id)
       end
     end
     UI_setAttribute("veto_pnl","active",false)
-    G.d.confirm_lock = false
-    G.d.veto_declined = true
+    G.d.players[player.color].veto_declined = true
     if G.d.whirlwind then
       startPlayerActions(G.d.active_player)
     elseif G.d.phase == "actions" then
       if G.d.action.special.immediate then
-        processAction(ap, "special")
+        G.d.action.stage = "main"
+        processAction(G.d.active_player, "special")
       elseif G.d.action.special.id == "civil_war" then
         playerDone(G.d.action.player)
       end
     elseif G.d.phase == "scoring" then
-      log("--- TODO: vetoClick():veto_no: anything during scoring?")
+      log("--- vetoClick():veto_no: handle decline veto during scoring?")
+      --re-display dialog and exit without releasing lock if another player can veto
+      for p,pd in pairs(G.d.players) do
+        if pd.veto_card and not(pd.veto_declined) then
+          --display veto dialog
+          UI_setAttribute("veto_player_pnl","color",p)
+          UI_setAttribute("veto_player_txt","text",p)
+          if G.env.intrigue_king_exp then
+            UI_setAttribute("veto_pnl","hidden","re_deal")
+          else
+            UI_setAttribute("veto_pnl","hidden","")
+          end
+          UI_setAttribute("veto_pnl","active",true)
+          return
+        end
+      end
     end
+    G.d.confirm_lock = false
   else
     log("ERROR: vetoClick(): unhandled id")
   end
@@ -6212,6 +6199,8 @@ function cardClick(card, pcol, alt)
   if G.d.phase ~= "actions" then log("cardClick() ignore card click in non-actions phase"); return end
   if G.d.players[pcol].action_card ~= "" then log("cardClick() ignore clicks when another card is selected"); return end
   G.d.players[pcol].action_card = card.getGUID()
+  card.memo = pcol
+  card.clearButtons()
   startPlayerActions(pcol)
 end
 --[[ Handler for player clicking on a button in the PlayerBoard action dialog.
@@ -6693,6 +6682,37 @@ end
 
 --//////////////// UTILITY ////////////////////////
 
+--[[ Check for any possible veto by opponents to active player.
+    If any, show dialog to first in player order that has not declined and return true.
+    If no players have veto or all have declined then return false.
+    active_player: Active player for the current action.
+--]]
+function checkVeto(active_player)
+  if env.trace then log("checkVeto() active_player: "..tostring(active_player)) end
+  local n = indexOf(G.d.player_order, active_player)
+  for i=1,#G.d.player_order - 1 do
+    n = n + 1; if n > #G.d.player_order then n = 1 end
+    local p = G.d.player_order[n]
+    local pd = G.d.players[p]
+    if pd.veto_card and not(pd.veto_declined) then
+      log("---TESTING: checkVeto(): activate veto check dialog for opponent "..p)
+      G.d.confirm_lock = true
+      UI_setAttribute("veto_player_pnl","color",p)
+      UI_setAttribute("veto_player_txt","text",p)
+      UI_setAttribute("veto_msg_txt","text","Veto _"..G.d.action.name.."_?")
+      UI_setAttribute("veto_pnl","response_action","processAction")
+      if G.env.intrigue_king_exp then
+        UI_setAttribute("veto_pnl","hidden","")
+        getObjectFromGUID(pd.power_card).clearButtons()
+      else UI_setAttribute("veto_pnl","hidden","re_deal") end
+      UI_setAttribute("veto_pnl","active",true)
+      return true
+    end
+  end
+  log("---TESTING: checkVeto(): no player can veto")
+  UI_setAttribute("veto_pnl","active",false)
+  return false
+end
 --[[ Set a scoring marker position for a given player color. ]]
 function setScoringMarkerPosition(p)
   if env.trace then log("setScoringMarkerPosition() "..tostring(p)) end

@@ -132,7 +132,7 @@ cards = {
     court=1, special={id="move_opp_caballero",dest="any_region",max=3,min=0,desc="Castillo/any region",},
   },
   ["d9ad73"] = { name="Decay of Authority",description="Opp return 3 from\nCourt to Provinces",
-    court=2, special={id="court_2_prov",opp=true,count=3,immediate=true,},
+    court=2, special={id="court_2_prov",opp=true,count=3,m,},
   },
   ["85cf2d"] = { name="Decay of Authority",description="Opp return 3 from\nCourt to Provinces",
     court=2, special={id="court_2_prov",opp=true,count=3,immediate=true,},
