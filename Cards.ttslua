@@ -132,7 +132,7 @@ cards = {
     court=1, special={id="move_opp_caballero",dest="any_region",max=3,min=0,desc="Castillo/any region",},
   },
   ["d9ad73"] = { name="Decay of Authority",description="Opp return 3 from\nCourt to Provinces",
-    court=2, special={id="court_2_prov",opp=true,count=3,m,},
+    court=2, special={id="court_2_prov",opp=true,count=3,immediate=true,},
   },
   ["85cf2d"] = { name="Decay of Authority",description="Opp return 3 from\nCourt to Provinces",
     court=2, special={id="court_2_prov",opp=true,count=3,immediate=true,},
@@ -177,8 +177,8 @@ power_cards = {
   [43] = { name="Cival War", description="Remove all opp Caballeros from one region & pay 1 Caballero from Court", --WORKS
     prov=4, special={id="civil_war"}
   },
-  [50] = {name="Provinces",description="Opp send 3 back\nto the Provinces", --TODO: test veto
-    prov=4, special={id="ret2provinces", count=3, desc="Drop on player board"},
+  [50] = {name="King Returns",description="Opp send 3 back\nto the Provinces",
+    prov=4, special={id="king_returns",disk=false,min=3,max=3, desc="Opp 3 -> Prov"},
   },
   [53] = { name="Alliance", description="Place Alliance marker\nbetween two regions\nwill be scored as one", --TODO: test veto
     prov=4, special={id="alliance", desc="Place Alliance marker"},

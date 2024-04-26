@@ -3,10 +3,13 @@
 --TODO: document, credits, etc.
 --board art: Francesco Neri https://boardgamegeek.com/image/540942/el-grande
 
-  -KNOWN ISSUES:
+  -KNOWN ISSUES/FAQ:
   -TODO: Revolution combined with Alliance: how to handle the combined scoring?  May get a weird result currently when two region's
           scores are added together and one is reversed.
-          FIXED: needs testing, FAQ: Entire alliance as reversed by Revolution.  Same as 2x scoring.  At least it's consistent?
+          FIXED: needs testing
+          FAQ: Entire alliance is reversed by Revolution.  Same as 2x scoring.  At least it's consistent?
+  -TODO: Mostly done.  Make scoring state/data persist. Make coro rewind/reload safe.
+          FAQ: Works for saved game reload. May work for rewind but multiple rewinds can get it confused. If very careful about the rewind then it's ok.
 
 
   -MVP TODO items remaining:
@@ -16,26 +19,25 @@
   -BUG: (I&K) Done button should warn if Caballero action not used after finishing Special Action.
   -BUG: (FIXED? TESSTING) Done button should show at start of player turn
   -BUG: (I&K) Yellow cards are hard to read, numbers need black border or something
+
   -TODO: (I&K) implement "missing" cards from player's edition. 73, 113
               Done: 153, 13, 43
   -TODO: populate and use the power_card_tips data. (Cards.ttslua).  Use env var or startup option to use?
 
   -Ongoing stuff
-  -TODO: really need to refactor design for 'Done' button (and maybe 'Undo' as well to match).
-        overloaded used between action, disk selection and cube placement causes very ugly complex
-        conditional code in the button handler.  Maybe separate buttons (or button onClick functions set in UI).
-        In conjunction with this, also refactor how updatePlayerBoardUI() works, more explicit settings in player/action data for UI state.
-  -TODO: base game: disable Done/Undo buttons during action (when Finished/Reset are showing).  Only show during action:stage == 'main'
   -BUG: base game: king card didn't flip face up at start of bidding phase (king card was held by last player before bid phase)
         WORKAROUND: just unlock and flip it manually.
   -BUG: not locking power card when moved to held_cards area, see code that places the card
         Maybe fixed with wait 1 frame then wait.condition?  test this.
   -BUG: I&K card 15: moved cube court to board.  Then moved that cube to Castillo.  Undo fails, cannot locate object.  Undo not being updated for Castillo.
+
   -TODO: retest Veto now that wait.condition over use is better
-  -TODO: Mostly done.  Make scoring state/data persist. Make coro rewind/reload safe.
-          Works for saved game reload. May work for rewind but multiple rewinds can get it confused.
-          If very careful about the rewind then it's ok.
   -TODO: retest the entire base game.  Much shared code changed in implementing I&K expansion
+  -TODO: base game: disable Done/Undo buttons during action (when Finished/Reset are showing).  Only show during action:stage == 'main'
+  -TODO: really need to refactor design for 'Done' button (and maybe 'Undo' as well to match).
+        overloaded used between action, disk selection and cube placement causes very ugly complex
+        conditional code in the button handler.  Maybe separate buttons (or button onClick functions set in UI).
+        In conjunction with this, also refactor how updatePlayerBoardUI() works, more explicit settings in player/action data for UI state.
 
   -Really hard stuff
   -TODO: how to undo last action step when vetoed.  Would need sequential undo and don't have that.  Also some action steps might create more than
@@ -49,6 +51,7 @@
   --Relatively minor finishing things / nice to haves
   -TODO: create an undo entry that clears scoring history when action that generated it get's undone (special scoring only)
   -TODO: waitLock(obj) utility function with timeout that logs debug info.  Maybe put in utils.ttslua?
+
 ]]
 env = {}
 env.version = "0.9 Beta"
@@ -60,7 +63,7 @@ env.use_saved_data = true -- set false to refresh saved data in game save during
 ---------------------------
 -- NOTE: Disable env.test_players for live game, use in DEVELOPMENT only
 -- env.test_players = {"Blue","Red","Green","Purple","Yellow"}
--- env.test_players = {"Red","Green","Purple"}
+env.test_players = {"Red","Green","Purple"}
 ----------------------------
 env.in_dev = false --leave some objects interactable for dev purposes.
 env.ui_dedupe = false --NOTE: EXPERIMENTAL: trying to ignore dupes in UI setAttribute calls.
@@ -261,9 +264,11 @@ function restoreGame()
       end
       --Check for any player played the veto card
       local pd = G.d.players[c]
-      if power_cards[pd.power_bid].special.id == "veto" then
-        local card = getObjectFromGUID(pd.power_card)
-        card.createButton(C.veto_card_button)
+      if pd.power_bid then
+        if power_cards[pd.power_bid].special.id == "veto" then
+          local card = getObjectFromGUID(pd.power_card)
+          card.createButton(C.veto_card_button)
+        end
       end
     end
     if G.d.IK_bridge then
@@ -282,17 +287,17 @@ function restoreGame()
       end
     end
   end
-  if G.d.scoring.running then
+  if G.d.scoring and G.d.scoring.running then
     Wait.time(function()
       log("restoreGame() INFO: restarting scoring coro, should pick up where it left off")
       G.d.scoring.restarting = true
-      -- log("****************************************")
-      -- log(G.d.scoring)
-      -- log("****************************************")
+      log("****************************************")
+      log(G.d.scoring)
+      log("****************************************")
       startScoring()
     end,1)
   end
-  if env.hide_start_panel then UI.setAttribute("start_pnl","active",false) end --DEVELOPMENT
+  if env.hide_start_panel then UI.setAttribute("start_pnl","active",false) end --DEVELOPMENT only
 end
 --[[ Set xml on all the regions and apply attribute data from Constants
     UIs are initialized inactive.
@@ -763,6 +768,7 @@ end
 function startBidPhase()
   if env.trace then log("startBidPhase()") end
   G.d.phase = "bidding"
+  if G.d.scoring.running then G.d.scoring.running = false end --HACK
   if G.env.intrigue_king_exp then
     if G.env.verbose then broadcastToAll("In current turn order players play power cards") end
     G.d.players_to_bid = simpleDeepCopy(G.d.player_order)
@@ -910,8 +916,9 @@ end
 --]]
 function resetAction()
   if env.trace then log("resetAction()") end
+  if G.d.scoring.running then G.d.scoring.running = false end --HACK
   G.d.action = {
-    stage= "main",              --"main" | "court" | "special", keys to undo tables, UI updates, etc.
+    stage= "main",          --"main" | "court" | "special", keys to undo tables, UI updates, etc.
     guid = "",              --card guid
     player = "",            --active player
     opponents = {},         --active player's opponents
@@ -927,7 +934,7 @@ function resetAction()
       waitlist={},
       show=true,
     },
-    sequence = {},          --LIFO, Order of actions taken, used by reset/undo to unwind: "court", "special", "IK_king", "IK_intrigue"
+    sequence = {},  --TODO: back this out --LIFO, Order of actions taken, used by reset/undo to unwind: "court", "special", "IK_king", "IK_intrigue"
   }
   if G.env.intrigue_king_exp then
     G.d.action.IK = {}
@@ -3555,7 +3562,7 @@ function playerDone(pcol)
                 msg = msg.."]"
               end
               G.d.players[G.d.active_player].allow_undo = undo_ok
-              a.allow_veto = false --TODO: should veto be allowed when secret region(s) is(are) revealed?  Check inside startScoring()?
+              -- a.allow_veto = false --TODO: should veto be allowed when secret region(s) is(are) revealed?  Check inside startScoring()?
               a.stage_status = "Special Scoring"
               debug("special_scoring, secret, starting scoring")
               startScoring(regions,true,msg)
